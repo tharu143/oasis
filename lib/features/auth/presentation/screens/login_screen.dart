@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
 import 'package:oasis/features/dashboard/presentation/screens/dashboard_screen.dart';
 
@@ -18,7 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _serverController = TextEditingController(text: 'vps-mobile.vpsbusinesssolution.com');
+  final _serverController = TextEditingController(text: 'oasis.vpsbusinesssolution.com');
   
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -43,14 +44,51 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
+    if (!_formKey.currentState!.validate()) return;
+    
     setState(() => _isLoading = true);
 
-    // Mock delay for UI showcase
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      final String serverUrl = _serverController.text.trim();
+      final String fullServerUrl = serverUrl.startsWith('http') ? serverUrl : 'https://$serverUrl';
+      
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('serverUrl', fullServerUrl);
 
-    if (mounted) {
-      setState(() => _isLoading = false);
-      Navigator.pushReplacementNamed(context, '/dashboard');
+      final apiClient = ApiClient();
+      final response = await apiClient.post('oasis_mobile.api.auth.custom_login3', {
+        'usr': _usernameController.text.trim(),
+        'pwd': _passwordController.text,
+      });
+
+      // Save user info
+      if (response['full_name'] != null) {
+        await prefs.setString('full_name', response['full_name']);
+      }
+      
+      // Save user roles for workflow permissions
+      if (response['roles'] != null) {
+        await prefs.setStringList('roles', List<String>.from(response['roles']));
+      }
+
+      // Save credentials if Remember Me is checked
+      if (_rememberMe) {
+        await prefs.setBool('rememberMe', true);
+        await prefs.setString('username', _usernameController.text.trim());
+        await prefs.setString('password', _passwordController.text);
+      } else {
+        await prefs.remove('username');
+        await prefs.remove('password');
+        await prefs.setBool('rememberMe', false);
+      }
+
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      }
+    } catch (e) {
+      _showError('Login failed: ${e.toString()}');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

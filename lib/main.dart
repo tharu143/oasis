@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/dashboard/presentation/screens/dashboard_screen.dart';
+import 'features/quotation/presentation/screens/quotation_dashboard_screen.dart';
+import 'features/quotation/presentation/screens/quotation_form_screen.dart';
 import 'features/quotation/presentation/screens/quotation_list_screen.dart';
 
 void main() {
@@ -21,7 +23,9 @@ class OasisApp extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginScreen(),
         '/dashboard': (context) => const DashboardScreen(),
+        '/quotation-dashboard': (context) => const QuotationDashboardScreen(),
         '/quotation-list': (context) => const QuotationListScreen(),
+        '/quotation-form': (context) => const QuotationFormScreen(),
       },
     );
   }

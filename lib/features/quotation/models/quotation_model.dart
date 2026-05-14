@@ -1,15 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:oasis/core/constants/app_colors.dart';
 
+class PaymentSchedule {
+  final double paymentAmount;
+  final double basePaymentAmount;
+  final double paidAmount;
+  final double outstanding;
+  final double baseOutstanding;
+
+  PaymentSchedule({
+    this.paymentAmount = 0.0,
+    this.basePaymentAmount = 0.0,
+    this.paidAmount = 0.0,
+    this.outstanding = 0.0,
+    this.baseOutstanding = 0.0,
+  });
+
+  factory PaymentSchedule.fromJson(Map<String, dynamic> json) {
+    return PaymentSchedule(
+      paymentAmount: (json['payment_amount'] ?? 0.0).toDouble(),
+      basePaymentAmount: (json['base_payment_amount'] ?? 0.0).toDouble(),
+      paidAmount: (json['paid_amount'] ?? 0.0).toDouble(),
+      outstanding: (json['outstanding'] ?? 0.0).toDouble(),
+      baseOutstanding: (json['base_outstanding'] ?? 0.0).toDouble(),
+    );
+  }
+}
+
 class QuotationItem {
   final String itemCode;
   final String itemName;
   final String description;
   final double qty;
   final String uom;
+  final double rate;
   final double valuationRate;
+  final double amount;
   final String customAreaServed;
-  final double amount; // Keep for UI if needed
+  final String customCap;
+  final String customModel;
+  final String customProjectItem;
+  final String customTypeOfUnit;
 
   QuotationItem({
     required this.itemCode,
@@ -17,67 +48,116 @@ class QuotationItem {
     required this.description,
     required this.qty,
     this.uom = 'Nos',
+    this.rate = 0.0,
     this.valuationRate = 0.0,
-    this.customAreaServed = '',
     this.amount = 0.0,
+    this.customAreaServed = '',
+    this.customCap = '',
+    this.customModel = '',
+    this.customProjectItem = '',
+    this.customTypeOfUnit = '',
   });
-}
 
-class PaymentScheduleItem {
-  final double paymentAmount;
-  final double outstanding;
-  final double paidAmount;
-  final double basePaymentAmount;
-  final double baseOutstanding;
-  final String dueDate;
-  final double invoicePortion;
+  factory QuotationItem.fromJson(Map<String, dynamic> json) {
+    return QuotationItem(
+      itemCode: (json['item_code'] ?? '').toString(),
+      itemName: (json['item_name'] ?? '').toString(),
+      description: (json['description'] ?? '').toString(),
+      qty: (json['qty'] ?? 0.0).toDouble(),
+      uom: (json['uom'] ?? 'Nos').toString(),
+      rate: (json['rate'] ?? 0.0).toDouble(),
+      valuationRate: (json['valuation_rate'] ?? json['rate'] ?? 0.0).toDouble(),
+      amount: (json['amount'] ?? 0.0).toDouble(),
+      customAreaServed: (json['custom_area_served'] ?? '').toString(),
+      customCap: (json['custom_cap'] ?? '').toString(),
+      customModel: (json['custom_model'] ?? '').toString(),
+      customProjectItem: (json['custom_project_item'] ?? '').toString(),
+      customTypeOfUnit: (json['custom_type_of_unit'] ?? '').toString(),
+    );
+  }
 
-  PaymentScheduleItem({
-    required this.paymentAmount,
-    this.outstanding = 0.0,
-    this.paidAmount = 0.0,
-    this.basePaymentAmount = 0.0,
-    this.baseOutstanding = 0.0,
-    this.dueDate = '',
-    this.invoicePortion = 0.0,
-  });
+  Map<String, dynamic> toJson() {
+    return {
+      'item_code': itemCode,
+      'qty': qty,
+      'rate': rate,
+      'amount': amount,
+      'custom_area_served': customAreaServed,
+      'custom_cap': customCap,
+      'custom_model': customModel,
+      'custom_project_item': customProjectItem,
+      'custom_type_of_unit': customTypeOfUnit,
+      'description': description,
+    };
+  }
 }
 
 class Quotation {
-  final String name; // maps to 'name' or 'id'
+  final String name;
   final String workflowState;
   final String title;
   final String quotationTo;
   final String partyName;
   final String customerName;
   final String transactionDate;
-  final String customQuoteType;
-  final String customAmcPeriod;
-  final String customNoOfVisits;
-  final String orderType;
+  final String validTill;
   final String company;
-  final String customApprovedBy;
-  final String customApprovedByName;
+  final String currency;
+  final String customQuoteType;
+  final String customRef;
   final String customSubject;
   final String customSubjectInArabic;
-  final String customContractPeriod;
-  final String customContractPeriodInArabic;
-  final String currency;
-  final double totalQty;
-  final double baseTotal;
+  final String customAmcPeriod;
+  final String customCustomerNameInArabic;
+  
+  // Contact & Address Arabic
+  final String customContactNameArabic;
+  final String customContactMobileNoArabic;
+  final String customAddressArabic;
+  
+  // Branding & Technical
+  final String customBrandName;
+  final String customBrandNameInArabic;
+  final String customCountryOfOrigin;
+  final String customCountryOfOriginInArabic;
+  final String customMaterialBrand;
+  final String customProjectItems;
+  
   final double baseGrandTotal;
+  final double baseTotal;
   final String baseInWords;
+  final String orderType;
+  final String customNoOfVisits;
+  final double totalQty;
+  
+  // Technical Specs
   final String customScopeOfWork;
   final String customScopeOfWorkInArabic;
   final String customExclusionsEng;
   final String customExclusionsInArabic;
+  
+  // Commercial Terms
   final String customPaymentTermsEng;
   final String customPaymentTermsArabic;
-  final List<PaymentScheduleItem> paymentSchedule;
-  final List<QuotationItem> items;
+  final String customWarrantyEng;
+  final String customWarrantyArabic;
+  final String customCompletionPeriodEng;
+  final String customCompletionPeriodArabic;
+  final String customContractPeriod;
+  final String customContractPeriodInArabic;
+  final String customTermsDetailsArabic;
+  final String customMoreTerms;
   
-  // Extra UI fields
-  final String statusLabel;
+  // Internal Approvals
+  final String customPreparedByName;
+  final String customVerifiedByName;
+  final String customApprovedBy;
+  final String customApprovedByName;
+  
+  final List<QuotationItem> items;
+  final List<PaymentSchedule> paymentSchedule;
+  final List<String> workflowActions;
+  final int docstatus;
 
   Quotation({
     required this.name,
@@ -87,32 +167,137 @@ class Quotation {
     this.partyName = '',
     required this.customerName,
     required this.transactionDate,
-    this.customQuoteType = '',
-    this.customAmcPeriod = '',
-    this.customNoOfVisits = '',
-    this.orderType = '',
+    this.validTill = '',
     this.company = '',
-    this.customApprovedBy = '',
-    this.customApprovedByName = '',
+    this.currency = 'QAR',
+    this.customQuoteType = '',
+    this.customRef = '',
     this.customSubject = '',
     this.customSubjectInArabic = '',
-    this.customContractPeriod = '',
-    this.customContractPeriodInArabic = '',
-    this.currency = 'QAR',
-    this.totalQty = 0.0,
-    this.baseTotal = 0.0,
+    this.customAmcPeriod = '',
+    this.customCustomerNameInArabic = '',
+    this.customContactNameArabic = '',
+    this.customContactMobileNoArabic = '',
+    this.customAddressArabic = '',
+    this.customBrandName = '',
+    this.customBrandNameInArabic = '',
+    this.customCountryOfOrigin = '',
+    this.customCountryOfOriginInArabic = '',
+    this.customMaterialBrand = '',
+    this.customProjectItems = '',
     this.baseGrandTotal = 0.0,
+    this.baseTotal = 0.0,
     this.baseInWords = '',
+    this.orderType = '',
+    this.customNoOfVisits = '',
+    this.totalQty = 0.0,
     this.customScopeOfWork = '',
     this.customScopeOfWorkInArabic = '',
     this.customExclusionsEng = '',
     this.customExclusionsInArabic = '',
     this.customPaymentTermsEng = '',
     this.customPaymentTermsArabic = '',
-    this.paymentSchedule = const [],
+    this.customWarrantyEng = '',
+    this.customWarrantyArabic = '',
+    this.customCompletionPeriodEng = '',
+    this.customCompletionPeriodArabic = '',
+    this.customContractPeriod = '',
+    this.customContractPeriodInArabic = '',
+    this.customTermsDetailsArabic = '',
+    this.customMoreTerms = '',
+    this.customPreparedByName = '',
+    this.customVerifiedByName = '',
+    this.customApprovedBy = '',
+    this.customApprovedByName = '',
     this.items = const [],
-    this.statusLabel = '',
+    this.paymentSchedule = const [],
+    this.workflowActions = const [],
+    this.docstatus = 0,
   });
+
+  factory Quotation.fromJson(Map<String, dynamic> json) {
+    var itemsList = (json['items'] as List? ?? [])
+        .map((i) => QuotationItem.fromJson(i))
+        .toList();
+    
+    var scheduleList = (json['payment_schedule'] as List? ?? [])
+        .map((s) => PaymentSchedule.fromJson(s))
+        .toList();
+
+    return Quotation(
+      name: (json['name'] ?? '').toString(),
+      workflowState: (json['workflow_state'] ?? 'Draft').toString(),
+      title: (json['title'] ?? '').toString(),
+      quotationTo: (json['quotation_to'] ?? '').toString(),
+      partyName: (json['party_name'] ?? '').toString(),
+      customerName: (json['customer_name'] ?? '').toString(),
+      transactionDate: (json['transaction_date'] ?? '').toString(),
+      validTill: (json['valid_till'] ?? '').toString(),
+      company: (json['company'] ?? '').toString(),
+      currency: (json['currency'] ?? 'QAR').toString(),
+      customQuoteType: (json['custom_quote_type'] ?? '').toString(),
+      customRef: (json['custom_ref'] ?? '').toString(),
+      customSubject: (json['custom_subject'] ?? '').toString(),
+      customSubjectInArabic: (json['custom_subject_in_arabic'] ?? '').toString(),
+      customAmcPeriod: (json['custom_amc_period'] ?? '').toString(),
+      customCustomerNameInArabic: (json['custom_customer_name_in_arabic'] ?? '').toString(),
+      customContactNameArabic: (json['custom_contact_name_arabic'] ?? '').toString(),
+      customContactMobileNoArabic: (json['custom_contact_mobile_no_arabic'] ?? '').toString(),
+      customAddressArabic: (json['custom_address_arabic'] ?? '').toString(),
+      customBrandName: (json['custom_brand_name'] ?? '').toString(),
+      customBrandNameInArabic: (json['custom_brand_name_in_arabic'] ?? '').toString(),
+      customCountryOfOrigin: (json['custom_country_of_origin'] ?? '').toString(),
+      customCountryOfOriginInArabic: (json['custom_country_of_origin_in_arabic'] ?? '').toString(),
+      customMaterialBrand: (json['custom_material_brand'] ?? '').toString(),
+      customProjectItems: (json['custom_project_items'] ?? '').toString(),
+      baseGrandTotal: (json['base_grand_total'] ?? json['grand_total'] ?? 0.0).toDouble(),
+      baseTotal: (json['base_total'] ?? 0.0).toDouble(),
+      baseInWords: (json['base_in_words'] ?? '').toString(),
+      orderType: (json['order_type'] ?? '').toString(),
+      customNoOfVisits: (json['custom_no_of_visits'] ?? '').toString(),
+      totalQty: (json['total_qty'] ?? 0.0).toDouble(),
+      customScopeOfWork: (json['custom_scope_of_work'] ?? '').toString(),
+      customScopeOfWorkInArabic: (json['custom_scope_of_work_in_arabic'] ?? '').toString(),
+      customExclusionsEng: (json['custom_exclusions_eng'] ?? '').toString(),
+      customExclusionsInArabic: (json['custom_exclusions_in_arabic'] ?? '').toString(),
+      customPaymentTermsEng: (json['custom_payment_terms_eng'] ?? '').toString(),
+      customPaymentTermsArabic: (json['custom_payment_terms_arabic'] ?? '').toString(),
+      customWarrantyEng: (json['custom_warranty_eng'] ?? '').toString(),
+      customWarrantyArabic: (json['custom_warranty_arabic'] ?? '').toString(),
+      customCompletionPeriodEng: (json['custom_completion_period_eng'] ?? '').toString(),
+      customCompletionPeriodArabic: (json['custom_completion_period_arabic'] ?? '').toString(),
+      customContractPeriod: (json['custom_contract_period'] ?? '').toString(),
+      customContractPeriodInArabic: (json['custom_contract_period_in_arabic'] ?? '').toString(),
+      customTermsDetailsArabic: (json['custom_terms_details_arabic'] ?? '').toString(),
+      customMoreTerms: (json['custom_more_terms'] ?? '').toString(),
+      customPreparedByName: (json['custom_prepared_by_name'] ?? '').toString(),
+      customVerifiedByName: (json['custom_verified_by_name'] ?? '').toString(),
+      customApprovedBy: (json['custom_approved_by'] ?? '').toString(),
+      customApprovedByName: (json['custom_approved_by_name'] ?? '').toString(),
+      items: itemsList,
+      paymentSchedule: scheduleList,
+      workflowActions: List<String>.from(json['workflow_actions'] ?? []),
+      docstatus: json['docstatus'] ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'quotation_to': quotationTo,
+      'party_name': partyName,
+      'transaction_date': transactionDate,
+      'valid_till': validTill,
+      'company': company,
+      'currency': currency,
+      'custom_quote_type': customQuoteType,
+      'custom_ref': customRef,
+      'custom_subject': customSubject,
+      'custom_subject_in_arabic': customSubjectInArabic,
+      'custom_amc_period': customAmcPeriod,
+      'custom_customer_name_in_arabic': customCustomerNameInArabic,
+      'items': items.map((i) => i.toJson()).toList(),
+    };
+  }
 
   Color get statusColor {
     switch (workflowState.toLowerCase()) {
@@ -126,98 +311,3 @@ class Quotation {
     }
   }
 }
-
-List<Quotation> get mockQuotations => [
-  Quotation(
-    name: 'SAL-QTN-2026-00373',
-    workflowState: 'Draft',
-    title: 'Mr MUBARAK SALMEEN AL MOHANNADI',
-    quotationTo: 'Lead',
-    partyName: 'CRM-LEAD-2026-00042',
-    customerName: 'Mr MUBARAK SALMEEN AL MOHANNADI',
-    transactionDate: '2026-05-09',
-    customQuoteType: 'Retail',
-    customAmcPeriod: '',
-    customNoOfVisits: '',
-    orderType: 'Sales',
-    company: 'Al Waha Engineering',
-    customApprovedBy: '',
-    customApprovedByName: '',
-    customSubject: 'SUPPLY AND INSTALLATION OF WALL MOUNTED SPLIT MITSUBISHI ELECTRIC BRAND',
-    customSubjectInArabic: 'توريد وتركيب مكيفات هواء من نوع سبليت مثبتة على الحائط من ماركة ميتسوبيشي إلكتريك',
-    currency: 'QAR',
-    totalQty: 2.0,
-    baseTotal: 4100.0,
-    baseGrandTotal: 4100.0,
-    baseInWords: 'QAR Four Thousand, One Hundred only.',
-    customScopeOfWork: 'TERMS AND CONDITIONS: 1. SCOPE OF WORK: SUPPLY AND INSTALLATION...',
-    customScopeOfWorkInArabic: '',
-    statusLabel: 'Ordered',
-    items: [
-      QuotationItem(itemCode: 'MS-GS24VF', itemName: 'MS-GS24VF', description: 'MS-GS24VF', qty: 1.0, uom: 'Nos', valuationRate: 1379.47, amount: 2050.0),
-    ],
-    paymentSchedule: [
-      PaymentScheduleItem(paymentAmount: 4100.0, outstanding: 4100.0, paidAmount: 0.0, basePaymentAmount: 4100.0, baseOutstanding: 4100.0, dueDate: '2026-05-09'),
-    ],
-  ),
-  Quotation(
-    name: 'SAL-QTN-2025-00104',
-    workflowState: 'Pending by MD',
-    title: 'MR SAMI NAJI-70100654',
-    quotationTo: 'Customer',
-    partyName: 'Mr.Sami Najar-70100654/55848433',
-    customerName: 'MR SAMI NAJI',
-    transactionDate: '2025-10-07',
-    customQuoteType: 'AMC',
-    customAmcPeriod: '1 Year',
-    customNoOfVisits: '04',
-    orderType: 'Maintenance',
-    company: 'Al Waha Engineering',
-    customSubject: 'QUOTATION FOR QUARTERLY MAINTENANCE CONTRACT FOR AIR CONDITIONNINGS.',
-    customSubjectInArabic: 'عرض سعر لعقد صيانة ربع سنوي للمكيفات',
-    customContractPeriod: '01-10-2025 TO 30-09-2026',
-    customContractPeriodInArabic: 'من  01-10-2025 الى 30-09-2026',
-    currency: 'QAR',
-    totalQty: 6.0,
-    baseTotal: 1400.0,
-    baseGrandTotal: 1400.0,
-    baseInWords: 'QAR One Thousand, Four Hundred only.',
-    customExclusionsEng: 'COMPRESSOR, PC BOARD, FAN MOTORS ARE EXCLUDED',
-    customPaymentTermsEng: 'HALF YEARLY PAYMENT: QAR 700.00 – ADVANCE PAYMENT',
-    statusLabel: 'Pending',
-    items: [
-      QuotationItem(itemCode: 'MU-CP18', itemName: 'MU-CP18', description: 'MU-CP18', qty: 2.0, uom: 'Nos', valuationRate: 1246.53),
-    ],
-    paymentSchedule: [
-      PaymentScheduleItem(paymentAmount: 1400.0, outstanding: 1400.0, paidAmount: 0.0, basePaymentAmount: 1400.0, baseOutstanding: 1400.0),
-    ],
-  ),
-  Quotation(
-    name: 'SAL-QTN-2024-00999',
-    workflowState: 'Approved By MD',
-    title: 'QATAR PETROLEUM',
-    quotationTo: 'Customer',
-    partyName: 'QATAR PETROLEUM',
-    customerName: 'QATAR PETROLEUM',
-    transactionDate: '2024-01-15',
-    customQuoteType: 'Retail',
-    orderType: 'Sales',
-    company: 'Al Waha Engineering',
-    customApprovedBy: 'md@oasis.com',
-    customApprovedByName: 'Managing Director',
-    customSubject: 'HVAC SYSTEM INSTALLATION FOR MAIN LOBBY',
-    customSubjectInArabic: '',
-    currency: 'QAR',
-    totalQty: 10.0,
-    baseTotal: 85000.0,
-    baseGrandTotal: 85000.0,
-    baseInWords: 'QAR Eighty Five Thousand only.',
-    statusLabel: 'Approved',
-    items: [
-      QuotationItem(itemCode: 'HVAC-100', itemName: 'Central AC Unit', description: '5 Ton AC Unit', qty: 10.0, uom: 'Nos', valuationRate: 8500.0),
-    ],
-    paymentSchedule: [
-      PaymentScheduleItem(paymentAmount: 85000.0, outstanding: 0.0, paidAmount: 85000.0, basePaymentAmount: 85000.0, baseOutstanding: 0.0),
-    ],
-  ),
-];
