@@ -136,7 +136,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       // Logo / Brand
                       Center(
                         child: Container(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             shape: BoxShape.circle,
@@ -148,10 +148,13 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ],
                           ),
-                          child: const Icon(
-                            Icons.layers_outlined,
-                            size: 48,
-                            color: AppColors.primary,
+                          child: ClipOval(
+                            child: Image.asset(
+                              'Assests/Oasis Logo.jpg',
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                            ),
                           ),
                         ),
                       ),
@@ -284,7 +287,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       
                       // Footer
                       Text(
-                        'Powered by Oasis Systems',
+                        'Powered by VPS Business Solutions',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
