@@ -159,7 +159,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 32),
                       
                       Text(
-                        'Oasis ERP',
+                        'Oasis',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.displayLarge?.copyWith(
                           color: AppColors.primary,

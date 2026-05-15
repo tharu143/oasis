@@ -283,7 +283,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Enterprise Dashboard',
+                'Oasis Dashboard',
                 style: GoogleFonts.plusJakartaSans(
                   color: Colors.white.withOpacity(0.8),
                   fontSize: 14,
