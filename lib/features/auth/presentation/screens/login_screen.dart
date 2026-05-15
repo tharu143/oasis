@@ -136,10 +136,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       // Logo / Brand
                       Center(
                         child: Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            shape: BoxShape.circle,
+                            borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
                                 color: AppColors.primary.withOpacity(0.1),
@@ -148,13 +148,11 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ],
                           ),
-                          child: ClipOval(
-                            child: Image.asset(
-                              'Assests/Oasis Logo.jpg',
-                              width: 80,
-                              height: 80,
-                              fit: BoxFit.cover,
-                            ),
+                          child: Image.asset(
+                            'Assests/Oasis Logo.jpg',
+                            width: 180,
+                            height: 100,
+                            fit: BoxFit.contain,
                           ),
                         ),
                       ),
