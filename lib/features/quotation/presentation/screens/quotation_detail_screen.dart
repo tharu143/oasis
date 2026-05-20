@@ -320,6 +320,12 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
         _buildSectionTitle('Items'),
         const SizedBox(height: 12),
         ..._quotation.items.map((item) => _buildExpandableItemCard(item)).toList(),
+        if (_quotation.customProjectItem.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          _buildSectionTitle('Project Items'),
+          const SizedBox(height: 12),
+          ..._quotation.customProjectItem.map((item) => _buildProjectItemCard(item)).toList(),
+        ],
         const SizedBox(height: 24),
         _buildSectionTitle('Signatories'),
         _buildSignatoriesCard(),
@@ -347,6 +353,10 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
       children: [
         _buildBilingualCard('Payment Terms', _quotation.customPaymentTermsEng, _quotation.customPaymentTermsArabic),
+        if (_quotation.paymentSchedule.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          _buildPaymentScheduleSection(),
+        ],
         const SizedBox(height: 24),
         _buildBilingualCard('Warranty', _quotation.customWarrantyEng, _quotation.customWarrantyArabic),
         const SizedBox(height: 24),
@@ -599,6 +609,178 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
     );
   }
 
+  Widget _buildProjectItemCard(QuotationProjectItem item) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border.withOpacity(0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  item.item,
+                  style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                ),
+              ),
+              Text(
+                '${item.qty.toStringAsFixed(0)} ${item.uom}',
+                style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
+              ),
+            ],
+          ),
+          if (item.itemName.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              item.itemName,
+              style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ],
+          if (item.description.isNotEmpty) ...[
+            const Divider(height: 20),
+            Text(
+              _stripHtml(item.description),
+              style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentScheduleSection() {
+    if (_quotation.paymentSchedule.isEmpty) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border.withOpacity(0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Payment Schedule',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+              if (_quotation.paymentTermsTemplate.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _quotation.paymentTermsTemplate,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const Divider(height: 32),
+          ...List.generate(_quotation.paymentSchedule.length, (index) {
+            final milestone = _quotation.paymentSchedule[index];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${index + 1}',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          milestone.paymentTerm,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        if (milestone.description.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            milestone.description,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '${milestone.invoicePortion.toStringAsFixed(0)}%',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'QAR ${milestone.paymentAmount.toStringAsFixed(2)}',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTechnicalGrid() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -612,7 +794,20 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
           _buildInfoRow('Brand (Arabic)', _quotation.customBrandNameInArabic),
           _buildInfoRow('Country of Origin', _quotation.customCountryOfOrigin),
           _buildInfoRow('Origin (Arabic)', _quotation.customCountryOfOriginInArabic),
-          _buildInfoRow('Material Brand', _quotation.customMaterialBrand),
+          _buildInfoRow(
+            'Material Brand',
+            _quotation.customMaterialBrand
+                .map((item) {
+                  final parts = [
+                    if (item.description.isNotEmpty) item.description,
+                    if (item.brand.isNotEmpty) item.brand,
+                    if (item.make.isNotEmpty) item.make,
+                  ];
+                  return parts.join(' - ');
+                })
+                .where((s) => s.isNotEmpty)
+                .join(', '),
+          ),
         ],
       ),
     );

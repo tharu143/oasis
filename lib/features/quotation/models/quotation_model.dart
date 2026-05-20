@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:oasis/core/constants/app_colors.dart';
 
 class PaymentSchedule {
+  final String paymentTerm;
+  final String description;
+  final double invoicePortion;
   final double paymentAmount;
   final double basePaymentAmount;
   final double paidAmount;
@@ -9,6 +12,9 @@ class PaymentSchedule {
   final double baseOutstanding;
 
   PaymentSchedule({
+    this.paymentTerm = '',
+    this.description = '',
+    this.invoicePortion = 0.0,
     this.paymentAmount = 0.0,
     this.basePaymentAmount = 0.0,
     this.paidAmount = 0.0,
@@ -18,12 +24,92 @@ class PaymentSchedule {
 
   factory PaymentSchedule.fromJson(Map<String, dynamic> json) {
     return PaymentSchedule(
+      paymentTerm: (json['payment_term'] ?? '').toString(),
+      description: (json['description'] ?? '').toString(),
+      invoicePortion: (json['invoice_portion'] ?? 0.0).toDouble(),
       paymentAmount: (json['payment_amount'] ?? 0.0).toDouble(),
       basePaymentAmount: (json['base_payment_amount'] ?? 0.0).toDouble(),
       paidAmount: (json['paid_amount'] ?? 0.0).toDouble(),
       outstanding: (json['outstanding'] ?? 0.0).toDouble(),
       baseOutstanding: (json['base_outstanding'] ?? 0.0).toDouble(),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'payment_term': paymentTerm,
+      'description': description,
+      'invoice_portion': invoicePortion,
+      'payment_amount': paymentAmount,
+      'base_payment_amount': basePaymentAmount,
+      'paid_amount': paidAmount,
+      'outstanding': outstanding,
+      'base_outstanding': baseOutstanding,
+    };
+  }
+}
+
+class MaterialBrandItem {
+  final String description;
+  final String brand;
+  final String make;
+
+  MaterialBrandItem({
+    required this.description,
+    required this.brand,
+    required this.make,
+  });
+
+  factory MaterialBrandItem.fromJson(Map<String, dynamic> json) {
+    return MaterialBrandItem(
+      description: (json['description'] ?? '').toString(),
+      brand: (json['brand'] ?? '').toString(),
+      make: (json['make'] ?? '').toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'description': description,
+      'brand': brand,
+      'make': make,
+    };
+  }
+}
+
+class QuotationProjectItem {
+  final String item; // references project item code
+  final String itemName; // helper or item name if needed
+  final String description;
+  final String uom;
+  final double qty;
+
+  QuotationProjectItem({
+    required this.item,
+    this.itemName = '',
+    required this.description,
+    required this.uom,
+    required this.qty,
+  });
+
+  factory QuotationProjectItem.fromJson(Map<String, dynamic> json) {
+    return QuotationProjectItem(
+      item: (json['item'] ?? json['project_item'] ?? '').toString(),
+      itemName: (json['item_name'] ?? '').toString(),
+      description: (json['description'] ?? '').toString(),
+      uom: (json['uom'] ?? 'Nos').toString(),
+      qty: (json['qty'] ?? 0.0).toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'item': item,
+      'item_name': itemName,
+      'description': description,
+      'uom': uom,
+      'qty': qty,
+    };
   }
 }
 
@@ -120,8 +206,9 @@ class Quotation {
   final String customBrandNameInArabic;
   final String customCountryOfOrigin;
   final String customCountryOfOriginInArabic;
-  final String customMaterialBrand;
+  final List<MaterialBrandItem> customMaterialBrand;
   final String customProjectItems;
+  final List<QuotationProjectItem> customProjectItem;
   
   final double baseGrandTotal;
   final double baseTotal;
@@ -147,6 +234,7 @@ class Quotation {
   final String customContractPeriodInArabic;
   final String customTermsDetailsArabic;
   final String customMoreTerms;
+  final String paymentTermsTemplate;
   
   // Internal Approvals
   final String customPreparedByName;
@@ -158,6 +246,8 @@ class Quotation {
   final List<PaymentSchedule> paymentSchedule;
   final List<String> workflowActions;
   final int docstatus;
+  final int disableRoundedTotal;
+  final String sellingPriceList;
 
   Quotation({
     required this.name,
@@ -183,8 +273,9 @@ class Quotation {
     this.customBrandNameInArabic = '',
     this.customCountryOfOrigin = '',
     this.customCountryOfOriginInArabic = '',
-    this.customMaterialBrand = '',
+    this.customMaterialBrand = const [],
     this.customProjectItems = '',
+    this.customProjectItem = const [],
     this.baseGrandTotal = 0.0,
     this.baseTotal = 0.0,
     this.baseInWords = '',
@@ -205,6 +296,7 @@ class Quotation {
     this.customContractPeriodInArabic = '',
     this.customTermsDetailsArabic = '',
     this.customMoreTerms = '',
+    this.paymentTermsTemplate = '',
     this.customPreparedByName = '',
     this.customVerifiedByName = '',
     this.customApprovedBy = '',
@@ -213,6 +305,8 @@ class Quotation {
     this.paymentSchedule = const [],
     this.workflowActions = const [],
     this.docstatus = 0,
+    this.disableRoundedTotal = 0,
+    this.sellingPriceList = 'Standard Selling',
   });
 
   factory Quotation.fromJson(Map<String, dynamic> json) {
@@ -223,6 +317,20 @@ class Quotation {
     var scheduleList = (json['payment_schedule'] as List? ?? [])
         .map((s) => PaymentSchedule.fromJson(s))
         .toList();
+
+    var materialBrandList = <MaterialBrandItem>[];
+    if (json['custom_material_brand'] is List) {
+      materialBrandList = (json['custom_material_brand'] as List)
+          .map((m) => MaterialBrandItem.fromJson(m))
+          .toList();
+    }
+
+    var projectItemList = <QuotationProjectItem>[];
+    if (json['custom_project_item'] is List) {
+      projectItemList = (json['custom_project_item'] as List)
+          .map((p) => QuotationProjectItem.fromJson(p))
+          .toList();
+    }
 
     return Quotation(
       name: (json['name'] ?? '').toString(),
@@ -248,8 +356,9 @@ class Quotation {
       customBrandNameInArabic: (json['custom_brand_name_in_arabic'] ?? '').toString(),
       customCountryOfOrigin: (json['custom_country_of_origin'] ?? '').toString(),
       customCountryOfOriginInArabic: (json['custom_country_of_origin_in_arabic'] ?? '').toString(),
-      customMaterialBrand: (json['custom_material_brand'] ?? '').toString(),
+      customMaterialBrand: materialBrandList,
       customProjectItems: (json['custom_project_items'] ?? '').toString(),
+      customProjectItem: projectItemList,
       baseGrandTotal: (json['base_grand_total'] ?? json['grand_total'] ?? 0.0).toDouble(),
       baseTotal: (json['base_total'] ?? 0.0).toDouble(),
       baseInWords: (json['base_in_words'] ?? '').toString(),
@@ -270,6 +379,7 @@ class Quotation {
       customContractPeriodInArabic: (json['custom_contract_period_in_arabic'] ?? '').toString(),
       customTermsDetailsArabic: (json['custom_terms_details_arabic'] ?? '').toString(),
       customMoreTerms: (json['custom_more_terms'] ?? '').toString(),
+      paymentTermsTemplate: (json['payment_terms_template'] ?? '').toString(),
       customPreparedByName: (json['custom_prepared_by_name'] ?? '').toString(),
       customVerifiedByName: (json['custom_verified_by_name'] ?? '').toString(),
       customApprovedBy: (json['custom_approved_by'] ?? '').toString(),
@@ -278,6 +388,10 @@ class Quotation {
       paymentSchedule: scheduleList,
       workflowActions: List<String>.from(json['workflow_actions'] ?? []),
       docstatus: json['docstatus'] ?? 0,
+      disableRoundedTotal: json['disable_rounded_total'] is bool 
+          ? (json['disable_rounded_total'] ? 1 : 0) 
+          : (int.tryParse(json['disable_rounded_total']?.toString() ?? '') ?? 0),
+      sellingPriceList: (json['selling_price_list'] ?? 'Standard Selling').toString(),
     );
   }
 
@@ -295,7 +409,23 @@ class Quotation {
       'custom_subject_in_arabic': customSubjectInArabic,
       'custom_amc_period': customAmcPeriod,
       'custom_customer_name_in_arabic': customCustomerNameInArabic,
+      'custom_brand_name': customBrandName,
+      'custom_brand_name_in_arabic': customBrandNameInArabic,
+      'custom_country_of_origin': customCountryOfOrigin,
+      'custom_country_of_origin_in_arabic': customCountryOfOriginInArabic,
+      'custom_material_brand': customMaterialBrand.map((m) => m.toJson()).toList(),
+      'custom_project_item': customProjectItem.map((p) => p.toJson()).toList(),
+      'custom_scope_of_work': customScopeOfWork,
+      'custom_scope_of_work_in_arabic': customScopeOfWorkInArabic,
+      'custom_exclusions_eng': customExclusionsEng,
+      'custom_exclusions_in_arabic': customExclusionsInArabic,
+      'custom_payment_terms_eng': customPaymentTermsEng,
+      'custom_payment_terms_arabic': customPaymentTermsArabic,
+      'payment_terms_template': paymentTermsTemplate,
+      'payment_schedule': paymentSchedule.map((s) => s.toJson()).toList(),
       'items': items.map((i) => i.toJson()).toList(),
+      'disable_rounded_total': disableRoundedTotal,
+      'selling_price_list': sellingPriceList,
     };
   }
 
