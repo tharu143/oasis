@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
+import 'package:oasis/core/services/fcm_service.dart';
 import 'package:oasis/features/dashboard/presentation/screens/dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -81,6 +82,9 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.remove('password');
         await prefs.setBool('rememberMe', false);
       }
+
+      // Register FCM device token with ERPNext after login
+      await FcmService.instance.register();
 
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/dashboard');

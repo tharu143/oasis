@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "953491003461",
+    "project_id": "oasis-mobile-erp",
+    "storage_bucket": "oasis-mobile-erp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:953491003461:android:bde8d98280606ce390eb2c",
+        "android_client_info": {
+          "package_name": "com.example.oasis_erp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCaOZj2ee8SaeeLH-imIrdBB2yGvPUamFE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
