@@ -326,9 +326,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget _buildModulesGrid() {
     final modules = [
       {'title': 'Quotation', 'icon': Icons.request_quote_rounded, 'color': AppColors.primary, 'enabled': true},
-      {'title': 'Sales Order', 'icon': Icons.shopping_cart_rounded, 'color': const Color(0xFF10B981), 'enabled': false},
-      {'title': 'Delivery Note', 'icon': Icons.local_shipping_rounded, 'color': const Color(0xFF8B5CF6), 'enabled': false},
-      {'title': 'Purchase Order', 'icon': Icons.shopping_bag_rounded, 'color': const Color(0xFFF59E0B), 'enabled': false},
+      {'title': 'Sales Order', 'icon': Icons.shopping_cart_rounded, 'color': const Color(0xFF10B981), 'enabled': true},
+      {'title': 'Delivery Note', 'icon': Icons.local_shipping_rounded, 'color': const Color(0xFF8B5CF6), 'enabled': true},
+      {'title': 'Purchase Order', 'icon': Icons.shopping_bag_rounded, 'color': const Color(0xFFF59E0B), 'enabled': true},
       {'title': 'Material Request', 'icon': Icons.inventory_2_rounded, 'color': const Color(0xFF06B6D4), 'enabled': false},
       {'title': 'Journal Entry', 'icon': Icons.account_balance_wallet_rounded, 'color': const Color(0xFFEC4899), 'enabled': false},
       {'title': 'Payment Entry', 'icon': Icons.payments_rounded, 'color': const Color(0xFFF43F5E), 'enabled': false},
@@ -383,7 +383,15 @@ class _DashboardScreenState extends State<DashboardScreen>
               module['enabled'] as bool,
               () {
                 if (module['enabled'] as bool) {
-                  Navigator.pushNamed(context, '/quotation-dashboard');
+                  if (module['title'] == 'Sales Order') {
+                    Navigator.pushNamed(context, '/sales-order-dashboard');
+                  } else if (module['title'] == 'Delivery Note') {
+                    Navigator.pushNamed(context, '/delivery-note-dashboard');
+                  } else if (module['title'] == 'Purchase Order') {
+                    Navigator.pushNamed(context, '/purchase-order-dashboard');
+                  } else {
+                    Navigator.pushNamed(context, '/quotation-dashboard');
+                  }
                 } else {
                   _showComingSoon(module['title'] as String);
                 }
