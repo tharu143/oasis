@@ -9,9 +9,25 @@ import '../api/api_client.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 // Top-level background message handler (must NOT be inside a class)
 // ─────────────────────────────────────────────────────────────────────────────
+Future<void> updateNotificationStatus(String logName, String status) async {
+  try {
+    final apiClient = ApiClient();
+    await apiClient.post('oasis_mobile.api.fcm.update_notification_status', {
+      'log_name': logName,
+      'status': status,
+    });
+    debugPrint('✅ [FCM] Notification $logName marked as $status');
+  } catch (e) {
+    debugPrint('❌ [FCM] Failed to update notification status: $e');
+  }
+}
+
 @pragma('vm:entry-point')
 Future<void> firebaseBackgroundMessageHandler(RemoteMessage message) async {
   debugPrint('🔔 [FCM Background] ${message.notification?.title}: ${message.notification?.body}');
+  if (message.data.containsKey('log_name')) {
+    await updateNotificationStatus(message.data['log_name'], 'Delivered');
+  }
 }
 
 // Android high-importance notification channel
@@ -84,12 +100,18 @@ class FcmService {
     // 6. Foreground message → show local heads-up banner
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint('🔔 [FCM Foreground] ${message.notification?.title}');
+      if (message.data.containsKey('log_name')) {
+        updateNotificationStatus(message.data['log_name'], 'Delivered');
+      }
       _showLocalNotification(message);
     });
 
     // 7. Background tap (app was in background, user tapped notification)
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       debugPrint('🔔 [FCM Tap-Background] ${message.data}');
+      if (message.data.containsKey('log_name')) {
+        updateNotificationStatus(message.data['log_name'], 'Read');
+      }
       _handleDeepLink(jsonEncode(message.data));
     });
 
@@ -97,6 +119,9 @@ class FcmService {
     final initialMessage = await _messaging.getInitialMessage();
     if (initialMessage != null) {
       debugPrint('🔔 [FCM Tap-Terminated] ${initialMessage.data}');
+      if (initialMessage.data.containsKey('log_name')) {
+        updateNotificationStatus(initialMessage.data['log_name'], 'Read');
+      }
       // Small delay to ensure navigator is ready
       Future.delayed(const Duration(milliseconds: 500), () {
         _handleDeepLink(jsonEncode(initialMessage.data));
