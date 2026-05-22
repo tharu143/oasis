@@ -31,6 +31,28 @@ import 'features/purchase_order/presentation/screens/purchase_order_detail_scree
 import 'features/purchase_order/presentation/screens/purchase_order_form_screen.dart';
 import 'features/purchase_order/presentation/screens/purchase_order_list_screen.dart';
 
+// Material Request Screen Imports
+import 'features/material_request/models/material_request_model.dart';
+import 'features/material_request/presentation/screens/material_request_dashboard_screen.dart';
+import 'features/material_request/presentation/screens/material_request_detail_screen.dart';
+import 'features/material_request/presentation/screens/material_request_form_screen.dart';
+import 'features/material_request/presentation/screens/material_request_list_screen.dart';
+
+// Journal Entry Screen Imports
+import 'features/journal_entry/models/journal_entry_model.dart';
+import 'features/journal_entry/presentation/screens/journal_entry_dashboard_screen.dart';
+import 'features/journal_entry/presentation/screens/journal_entry_detail_screen.dart';
+import 'features/journal_entry/presentation/screens/journal_entry_form_screen.dart';
+import 'features/journal_entry/presentation/screens/journal_entry_list_screen.dart';
+
+// Payment Entry Screen Imports
+import 'features/payment_entry/models/payment_entry_model.dart';
+import 'features/payment_entry/presentation/screens/payment_entry_dashboard_screen.dart';
+import 'features/payment_entry/presentation/screens/payment_entry_detail_screen.dart';
+import 'features/payment_entry/presentation/screens/payment_entry_form_screen.dart';
+import 'features/payment_entry/presentation/screens/payment_entry_list_screen.dart';
+
+
 /// Global navigator key — used by FcmService for deep-link routing on notification tap.
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -80,6 +102,21 @@ class OasisApp extends StatelessWidget {
         '/purchase-order-dashboard': (context) => const PurchaseOrderDashboardScreen(),
         '/purchase-order-list': (context) => const PurchaseOrderListScreen(),
         '/purchase-order-form': (context) => const PurchaseOrderFormScreen(),
+
+        // Material Request Routes
+        '/material-request-dashboard': (context) => const MaterialRequestDashboardScreen(),
+        '/material-request-list': (context) => const MaterialRequestListScreen(),
+        '/material-request-form': (context) => const MaterialRequestFormScreen(),
+
+        // Journal Entry Routes
+        '/journal-entry-dashboard': (context) => const JournalEntryDashboardScreen(),
+        '/journal-entry-list': (context) => const JournalEntryListScreen(),
+        '/journal-entry-form': (context) => const JournalEntryFormScreen(),
+
+        // Payment Entry Routes
+        '/payment-entry-dashboard': (context) => const PaymentEntryDashboardScreen(),
+        '/payment-entry-list': (context) => const PaymentEntryListScreen(),
+        '/payment-entry-form': (context) => const PaymentEntryFormScreen(),
       },
       // onGenerateRoute handles dynamic routes — e.g. deep-linking with a docname
       onGenerateRoute: (settings) {
@@ -151,6 +188,58 @@ class OasisApp extends StatelessWidget {
             settings: settings,
           );
         }
+
+        if (settings.name == '/material-request-detail') {
+          final docname = settings.arguments as String? ?? '';
+          final stub = MaterialRequestModel(
+            name: docname,
+            company: '',
+            materialRequestType: 'Purchase',
+            transactionDate: '',
+            items: [],
+          );
+          return MaterialPageRoute(
+            builder: (_) => MaterialRequestDetailScreen(materialRequest: stub),
+            settings: settings,
+          );
+        }
+
+        if (settings.name == '/journal-entry-detail') {
+          final docname = settings.arguments as String? ?? '';
+          final stub = JournalEntryModel(
+            name: docname,
+            company: '',
+            voucherType: 'Journal Entry',
+            postingDate: '',
+            accounts: [],
+          );
+          return MaterialPageRoute(
+            builder: (_) => JournalEntryDetailScreen(journalEntry: stub),
+            settings: settings,
+          );
+        }
+
+        if (settings.name == '/payment-entry-detail') {
+          final docname = settings.arguments as String? ?? '';
+          final stub = PaymentEntryModel(
+            name: docname,
+            company: '',
+            paymentType: 'Receive',
+            postingDate: '',
+            modeOfPayment: '',
+            paidFrom: '',
+            paidTo: '',
+            paidAmount: 0.0,
+            receivedAmount: 0.0,
+            targetExchangeRate: 1.0,
+            references: [],
+          );
+          return MaterialPageRoute(
+            builder: (_) => PaymentEntryDetailScreen(paymentEntry: stub),
+            settings: settings,
+          );
+        }
+
         return null; // let Flutter handle unknown routes
       },
     );

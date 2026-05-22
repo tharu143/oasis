@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart' as intl;
 import 'package:oasis/core/constants/app_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 // Removed unused imports
@@ -329,9 +328,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       {'title': 'Sales Order', 'icon': Icons.shopping_cart_rounded, 'color': const Color(0xFF10B981), 'enabled': true},
       {'title': 'Delivery Note', 'icon': Icons.local_shipping_rounded, 'color': const Color(0xFF8B5CF6), 'enabled': true},
       {'title': 'Purchase Order', 'icon': Icons.shopping_bag_rounded, 'color': const Color(0xFFF59E0B), 'enabled': true},
-      {'title': 'Material Request', 'icon': Icons.inventory_2_rounded, 'color': const Color(0xFF06B6D4), 'enabled': false},
-      {'title': 'Journal Entry', 'icon': Icons.account_balance_wallet_rounded, 'color': const Color(0xFFEC4899), 'enabled': false},
-      {'title': 'Payment Entry', 'icon': Icons.payments_rounded, 'color': const Color(0xFFF43F5E), 'enabled': false},
+      {'title': 'Material Request', 'icon': Icons.inventory_2_rounded, 'color': const Color(0xFF06B6D4), 'enabled': true},
+      {'title': 'Journal Entry', 'icon': Icons.account_balance_wallet_rounded, 'color': const Color(0xFFEC4899), 'enabled': true},
+      {'title': 'Payment Entry', 'icon': Icons.payments_rounded, 'color': const Color(0xFFF43F5E), 'enabled': true},
     ];
 
     return Column(
@@ -389,6 +388,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                     Navigator.pushNamed(context, '/delivery-note-dashboard');
                   } else if (module['title'] == 'Purchase Order') {
                     Navigator.pushNamed(context, '/purchase-order-dashboard');
+                  } else if (module['title'] == 'Material Request') {
+                    Navigator.pushNamed(context, '/material-request-dashboard');
+                  } else if (module['title'] == 'Journal Entry') {
+                    Navigator.pushNamed(context, '/journal-entry-dashboard');
+                  } else if (module['title'] == 'Payment Entry') {
+                    Navigator.pushNamed(context, '/payment-entry-dashboard');
                   } else {
                     Navigator.pushNamed(context, '/quotation-dashboard');
                   }
