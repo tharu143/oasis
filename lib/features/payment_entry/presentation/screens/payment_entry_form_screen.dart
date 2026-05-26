@@ -8,7 +8,8 @@ import '../../models/payment_entry_model.dart';
 
 class PaymentEntryFormScreen extends StatefulWidget {
   final PaymentEntryModel? paymentEntry;
-  const PaymentEntryFormScreen({super.key, this.paymentEntry});
+  final Map<String, dynamic>? initialData;
+  const PaymentEntryFormScreen({super.key, this.paymentEntry, this.initialData});
 
   @override
   State<PaymentEntryFormScreen> createState() => _PaymentEntryFormScreenState();
@@ -65,6 +66,8 @@ class _PaymentEntryFormScreenState extends State<PaymentEntryFormScreen> with Si
 
     if (widget.paymentEntry != null) {
       _loadExistingData();
+    } else if (widget.initialData != null) {
+      _loadInitialMappedData();
     } else {
       _applySmartAccountsDefault();
     }
@@ -113,6 +116,42 @@ class _PaymentEntryFormScreenState extends State<PaymentEntryFormScreen> with Si
       } catch (_) {}
       _remarks = pe.remarks ?? '';
       _customRemarks = pe.customRemarks == 1;
+    });
+  }
+
+  void _loadInitialMappedData() {
+    final data = widget.initialData!;
+    setState(() {
+      _paymentType = data['payment_type'] ?? 'Receive';
+      _company = data['company'] ?? 'Al Waha Engineering';
+      try {
+        if (data['posting_date'] != null) {
+          _postingDate = DateTime.parse(data['posting_date']);
+        }
+      } catch (_) {}
+      _modeOfPayment = data['mode_of_payment'] ?? 'Card';
+      _partyType = data['party_type'] ?? 'Customer';
+      _party = data['party'] ?? '';
+      _paidFrom = data['paid_from'] ?? 'Debtors - OTaIH';
+      _paidTo = data['paid_to'] ?? 'Qutba Cool -Doha Bank - OTaIH';
+      _paidAmount = (data['paid_amount'] ?? 0.0).toDouble();
+      _receivedAmount = (data['received_amount'] ?? 0.0).toDouble();
+      _targetExchangeRate = (data['target_exchange_rate'] ?? 1.0).toDouble();
+
+      if (data['references'] is List) {
+        _references = (data['references'] as List).map((refJson) {
+          return PaymentEntryReferenceModel.fromJson(Map<String, dynamic>.from(refJson));
+        }).toList();
+      }
+
+      _referenceNo = data['reference_no'] ?? '';
+      try {
+        if (data['reference_date'] != null) {
+          _referenceDate = DateTime.parse(data['reference_date']);
+        }
+      } catch (_) {}
+      _remarks = data['remarks'] ?? '';
+      _customRemarks = data['custom_remarks'] == 1;
     });
   }
 

@@ -4,30 +4,32 @@ import 'package:intl/intl.dart' as intl;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
-import 'package:oasis/features/delivery_note/models/delivery_note_model.dart';
-import 'package:oasis/features/sales_invoice/presentation/screens/sales_invoice_form_screen.dart';
-import 'delivery_note_form_screen.dart';
+import '../../models/sales_invoice_model.dart';
+import 'sales_invoice_form_screen.dart';
+import '../../../payment_entry/presentation/screens/payment_entry_form_screen.dart';
 
-class DeliveryNoteDetailScreen extends StatefulWidget {
-  final DeliveryNoteModel deliveryNote;
+class SalesInvoiceDetailScreen extends StatefulWidget {
+  final SalesInvoiceModel salesInvoice;
 
-  const DeliveryNoteDetailScreen({super.key, required this.deliveryNote});
+  const SalesInvoiceDetailScreen({super.key, required this.salesInvoice});
 
   @override
-  State<DeliveryNoteDetailScreen> createState() => _DeliveryNoteDetailScreenState();
+  State<SalesInvoiceDetailScreen> createState() => _SalesInvoiceDetailScreenState();
 }
 
-class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
+class _SalesInvoiceDetailScreenState extends State<SalesInvoiceDetailScreen> {
   final ApiClient _apiClient = ApiClient();
-  late DeliveryNoteModel _deliveryNote;
+  late SalesInvoiceModel _salesInvoice;
+  bool _hasWorkflow = false;
   List<String> _workflowActions = [];
+  List<String> _availableActions = [];
   List<String> _userRoles = [];
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _deliveryNote = widget.deliveryNote;
+    _salesInvoice = widget.salesInvoice;
     _fetchDetails();
     _loadUserRoles();
   }
@@ -45,24 +47,34 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
   Future<void> _fetchDetails() async {
     setState(() => _isLoading = true);
     try {
-      final response = await _apiClient.get(
-        'oasis_mobile.api.delivery_note.get_delivery_note',
-        params: {'name': _deliveryNote.name ?? ''},
-      );
+      dynamic response;
+      try {
+        response = await _apiClient.get(
+          'oasis_mobile.api.sales_invoice.get_sales_invoice',
+          params: {'name': _salesInvoice.name ?? ''},
+        );
+      } catch (_) {
+        // Fallback: Fetch directly using standard REST resource endpoints
+        response = await _apiClient.get(
+          '../resource/Sales Invoice/${Uri.encodeComponent(_salesInvoice.name ?? "")}',
+        );
+      }
       
       final dynamic body = response['message'] ?? response['data'] ?? response;
-      if (response['status'] == 'success' || body['status'] == 'success' || body['data'] != null) {
+      if (response['status'] == 'success' || body['status'] == 'success' || body['data'] != null || response['data'] != null) {
         setState(() {
-          final data = Map<String, dynamic>.from(body['data'] ?? {});
-          _workflowActions = List<String>.from(body['workflow_actions'] ?? []);
-          _deliveryNote = DeliveryNoteModel.fromJson(data);
+          final data = Map<String, dynamic>.from(body['data'] ?? body);
+          _hasWorkflow = response['has_workflow'] ?? body['has_workflow'] ?? false;
+          _workflowActions = List<String>.from(response['workflow_actions'] ?? body['workflow_actions'] ?? []);
+          _availableActions = List<String>.from(response['available_actions'] ?? body['available_actions'] ?? []);
+          _salesInvoice = SalesInvoiceModel.fromJson(data);
           _isLoading = false;
         });
       } else {
         setState(() => _isLoading = false);
       }
     } catch (e) {
-      debugPrint('❌ Error fetching delivery note details: $e');
+      debugPrint('❌ Error fetching sales invoice details: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -81,7 +93,7 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Confirm', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF3B82F6), fontWeight: FontWeight.bold)),
+            child: Text('Confirm', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF8B5CF6), fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -92,9 +104,9 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
     setState(() => _isLoading = true);
     try {
       final response = await _apiClient.post(
-        'oasis_mobile.api.delivery_note.apply_workflow_action',
+        'oasis_mobile.api.sales_invoice.apply_workflow_action',
         {
-          'name': _deliveryNote.name ?? '',
+          'name': _salesInvoice.name ?? '',
           'action': action,
         },
       );
@@ -137,13 +149,13 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
     }
   }
 
-  Future<void> _deleteNote() async {
+  Future<void> _deleteInvoice() async {
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text('Delete Document', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: Colors.red)),
-        content: Text('Are you sure you want to permanently delete this Delivery Note?', style: GoogleFonts.plusJakartaSans()),
+        content: Text('Are you sure you want to permanently delete this Sales Invoice?', style: GoogleFonts.plusJakartaSans()),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -161,16 +173,25 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final response = await _apiClient.post(
-        'oasis_mobile.api.delivery_note.delete_delivery_note',
-        {'name': _deliveryNote.name ?? ''},
-      );
+      dynamic response;
+      try {
+        response = await _apiClient.post(
+          'oasis_mobile.api.sales_invoice.delete_sales_invoice',
+          {'name': _salesInvoice.name ?? ''},
+        );
+      } catch (_) {
+        // Fallback: Use direct resource DELETE
+        response = await _apiClient.post(
+          '../method/frappe.client.delete',
+          {'doctype': 'Sales Invoice', 'name': _salesInvoice.name ?? ''},
+        );
+      }
 
-      final status = response['status'] ?? response['message']?['status'];
-      if (status == 'success' || response['message'] == 'success') {
+      final status = response['status'] ?? response['message']?['status'] ?? response['message'];
+      if (status == 'success' || response['message'] == 'success' || response['message'] == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Delivery Note deleted successfully'), backgroundColor: Colors.redAccent),
+            const SnackBar(content: Text('Sales Invoice deleted successfully'), backgroundColor: Colors.redAccent),
           );
           Navigator.pop(context, true);
         }
@@ -181,18 +202,18 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error deleting note: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error deleting invoice: $e'), backgroundColor: Colors.red),
         );
       }
     }
   }
 
-  Future<void> _makeSalesInvoice() async {
+  Future<void> _makePaymentEntry() async {
     setState(() => _isLoading = true);
     try {
       final response = await _apiClient.post(
-        'oasis_mobile.api.mapping.map_delivery_note_to_sales_invoice',
-        {'source_name': _deliveryNote.name ?? ''},
+        'oasis_mobile.api.mapping.map_sales_invoice_to_payment_entry',
+        {'source_name': _salesInvoice.name ?? ''},
       );
       setState(() => _isLoading = false);
       if (response['message'] != null) {
@@ -200,7 +221,7 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
           final result = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => SalesInvoiceFormScreen(
+              builder: (context) => PaymentEntryFormScreen(
                 initialData: Map<String, dynamic>.from(response['message']),
               ),
             ),
@@ -210,13 +231,85 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
           }
         }
       } else {
-        throw 'Failed to map delivery note to sales invoice';
+        throw 'Failed to map sales invoice to payment entry';
       }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error mapping document: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _submitInvoice() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await _apiClient.post(
+        'oasis_mobile.api.sales_invoice.submit_sales_invoice',
+        {'name': _salesInvoice.name ?? ''},
+      );
+      final message = response['message'] ?? response;
+      if (response['status'] == 'success' || message['status'] == 'success' || response['data'] != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invoice submitted successfully!'), backgroundColor: Color(0xFF10B981)),
+        );
+        _fetchDetails();
+      } else {
+        throw Exception(message['message'] ?? 'Submission failed.');
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Submit Error'),
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              )
+            ],
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _cancelInvoice() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await _apiClient.post(
+        'oasis_mobile.api.sales_invoice.cancel_sales_invoice',
+        {'name': _salesInvoice.name ?? ''},
+      );
+      final message = response['message'] ?? response;
+      if (response['status'] == 'success' || message['status'] == 'success' || response['data'] != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invoice cancelled successfully!'), backgroundColor: Colors.amber),
+        );
+        _fetchDetails();
+      } else {
+        throw Exception(message['message'] ?? 'Cancellation failed.');
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Cancel Error'),
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              )
+            ],
+          ),
         );
       }
     }
@@ -234,18 +327,18 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          _deliveryNote.name ?? 'DELIVERY NOTE DETAILS',
+          _salesInvoice.name ?? 'SALES INVOICE DETAILS',
           style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, color: AppColors.textPrimary, fontSize: 16),
         ),
         actions: [
-          if ((_deliveryNote.workflowState ?? '').toLowerCase() == 'draft') ...[
+          if ((_salesInvoice.workflowState ?? '').toLowerCase() == 'draft' || _salesInvoice.docstatus == 0) ...[
             IconButton(
               icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
               onPressed: () async {
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => DeliveryNoteFormScreen(deliveryNote: _deliveryNote),
+                    builder: (context) => SalesInvoiceFormScreen(salesInvoice: _salesInvoice),
                   ),
                 );
                 if (result == true) {
@@ -255,7 +348,7 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
-              onPressed: _deleteNote,
+              onPressed: _deleteInvoice,
             ),
           ],
         ],
@@ -265,7 +358,7 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
           : Stack(
               children: [
                 ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
                   physics: const BouncingScrollPhysics(),
                   children: [
                     _buildGlassmorphicHeaderCard(),
@@ -287,14 +380,14 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [_deliveryNote.statusColor, _deliveryNote.statusColor.withOpacity(0.8)],
+          colors: [_salesInvoice.statusColor, _salesInvoice.statusColor.withOpacity(0.8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: _deliveryNote.statusColor.withOpacity(0.3),
+            color: _salesInvoice.statusColor.withOpacity(0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -313,7 +406,7 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  _deliveryNote.workflowState ?? 'Draft',
+                  _salesInvoice.workflowState ?? 'Draft',
                   style: GoogleFonts.plusJakartaSans(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -321,7 +414,7 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
                   ),
                 ),
               ),
-              const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 28),
+              const Icon(Icons.receipt_long_outlined, color: Colors.white, size: 28),
             ],
           ),
           const SizedBox(height: 24),
@@ -339,7 +432,7 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.baseline,
             children: [
               Text(
-                '${_deliveryNote.currency} ',
+                '${_salesInvoice.currency} ',
                 style: GoogleFonts.plusJakartaSans(
                   color: Colors.white.withOpacity(0.9),
                   fontSize: 16,
@@ -347,7 +440,7 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
                 ),
               ),
               Text(
-                intl.NumberFormat("#,##0.00").format(_deliveryNote.grandTotal ?? 0.0),
+                intl.NumberFormat("#,##0.00").format(_salesInvoice.grandTotal ?? 0.0),
                 style: GoogleFonts.plusJakartaSans(
                   color: Colors.white,
                   fontSize: 28,
@@ -380,20 +473,21 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
           const SizedBox(height: 16),
           const Divider(height: 1, color: AppColors.border),
           const SizedBox(height: 12),
-          _buildInfoRow('Customer Code', _deliveryNote.customer),
-          _buildInfoRow('Customer Name', _deliveryNote.customerName ?? ''),
-          _buildInfoRow('Posting Date', _deliveryNote.postingDate),
-          _buildInfoRow('Posting Time', _deliveryNote.postingTime),
-          _buildInfoRow('Price List', _deliveryNote.sellingPriceList),
-          _buildInfoRow('Quote Type', _deliveryNote.customQuoteType ?? 'Retail'),
-          if (_deliveryNote.customQuoteType == 'Retail')
-            _buildInfoRow('Retail Quote Type', _deliveryNote.customRetailQuoteType ?? ''),
-          if (_deliveryNote.customPreparedBy != null && _deliveryNote.customPreparedBy!.isNotEmpty)
-            _buildInfoRow('Prepared By', _deliveryNote.customPreparedBy!),
-          if (_deliveryNote.customVerifiedBy != null && _deliveryNote.customVerifiedBy!.isNotEmpty)
-            _buildInfoRow('Verified By', _deliveryNote.customVerifiedBy!),
-          if (_deliveryNote.customApprovedBy != null && _deliveryNote.customApprovedBy!.isNotEmpty)
-            _buildInfoRow('Approved By', _deliveryNote.customApprovedBy!),
+          _buildInfoRow('Customer Code', _salesInvoice.customer),
+          _buildInfoRow('Customer Name', _salesInvoice.customerName ?? ''),
+          _buildInfoRow('Posting Date', _salesInvoice.postingDate),
+          _buildInfoRow('Due Date', _salesInvoice.dueDate),
+          _buildInfoRow('Outstanding Amount', '${_salesInvoice.currency} ${intl.NumberFormat("#,##0.00").format(_salesInvoice.outstandingAmount)}'),
+          _buildInfoRow('Price List', _salesInvoice.sellingPriceList),
+          _buildInfoRow('Quote Type', _salesInvoice.customQuoteType ?? 'Retail'),
+          if (_salesInvoice.customQuoteType == 'Retail')
+            _buildInfoRow('Retail Quote Type', _salesInvoice.customRetailQuoteType ?? ''),
+          if (_salesInvoice.customPreparedBy != null && _salesInvoice.customPreparedBy!.isNotEmpty)
+            _buildInfoRow('Prepared By', _salesInvoice.customPreparedBy!),
+          if (_salesInvoice.customVerifiedBy != null && _salesInvoice.customVerifiedBy!.isNotEmpty)
+            _buildInfoRow('Verified By', _salesInvoice.customVerifiedBy!),
+          if (_salesInvoice.customApprovedBy != null && _salesInvoice.customApprovedBy!.isNotEmpty)
+            _buildInfoRow('Approved By', _salesInvoice.customApprovedBy!),
         ],
       ),
     );
@@ -439,9 +533,9 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: _deliveryNote.items.length,
+            itemCount: _salesInvoice.items.length,
             itemBuilder: (context, index) {
-              final item = _deliveryNote.items[index];
+              final item = _salesInvoice.items[index];
               return Padding(
                 padding: const EdgeInsets.only(bottom: 16),
                 child: Row(
@@ -450,10 +544,10 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF3B82F6).withOpacity(0.1),
+                        color: const Color(0xFF8B5CF6).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.widgets_outlined, color: Color(0xFF3B82F6), size: 20),
+                      child: const Icon(Icons.widgets_outlined, color: Color(0xFF8B5CF6), size: 20),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -462,12 +556,12 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
                         children: [
                           Text(item.itemName ?? item.itemCode, style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                           const SizedBox(height: 4),
-                          Text('${item.qty.toStringAsFixed(0)} ${item.uom} x ${_deliveryNote.currency} ${intl.NumberFormat("#,##0.00").format(item.rate)}',
+                          Text('${item.qty.toStringAsFixed(0)} ${item.uom} x ${_salesInvoice.currency} ${intl.NumberFormat("#,##0.00").format(item.rate)}',
                               style: GoogleFonts.plusJakartaSans(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
                         ],
                       ),
                     ),
-                    Text('${_deliveryNote.currency} ${intl.NumberFormat("#,##0.00").format(item.amount ?? (item.qty * item.rate))}',
+                    Text('${_salesInvoice.currency} ${intl.NumberFormat("#,##0.00").format(item.amount ?? (item.qty * item.rate))}',
                         style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
                   ],
                 ),
@@ -480,48 +574,84 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
   }
 
   Widget _buildFloatingBottomActions() {
-    final state = (_deliveryNote.workflowState ?? '').toLowerCase();
     List<Widget> buttons = [];
+    final docstatus = _salesInvoice.docstatus ?? 0;
 
-    // docstatus == 1 means fully submitted/approved (workflow complete)
-    final bool isFullyApproved = _deliveryNote.docstatus == 1;
-
-    if (isFullyApproved) {
-      // Workflow complete — always show MAKE SALES INVOICE
-      buttons.add(
-        _buildActionButton(
-          'MAKE SALES INVOICE',
-          const Color(0xFF8B5CF6),
-          _makeSalesInvoice,
-        ),
-      );
-    } else {
-      // Document still in workflow — show workflow action buttons
-      List<String> actionsToAdd = [];
-      if (_workflowActions.isNotEmpty) {
-        actionsToAdd = List.from(_workflowActions);
-      } else {
-        // Fallback to role-based logic if API returned no workflow actions
-        if (isSalesUser) {
-          if (state == 'draft') actionsToAdd.add('Review');
-          else if (state.contains('pending')) actionsToAdd.add('Verified');
-        }
-        if (isAccountsUser) {
-          if (state.contains('pending')) actionsToAdd.add('Reject');
+    if (_availableActions.isNotEmpty) {
+      // Render strictly based on available_actions returned by the API
+      for (var action in _availableActions) {
+        if (action == 'Submit') {
+          buttons.add(
+            _buildActionButton('SUBMIT', const Color(0xFF8B5CF6), _submitInvoice),
+          );
+        } else if (action == 'Cancel') {
+          buttons.add(
+            _buildActionButton('CANCEL', Colors.redAccent, _cancelInvoice),
+          );
+        } else if (action == 'Make Payment Entry') {
+          if ((_salesInvoice.outstandingAmount ?? 0) > 0) {
+            buttons.add(
+              _buildActionButton(
+                'MAKE PAYMENT ENTRY',
+                const Color(0xFF10B981),
+                _makePaymentEntry,
+              ),
+            );
+          }
+        } else {
+          Color btnColor = const Color(0xFF8B5CF6);
+          if (action.toLowerCase().contains('reject') || action.toLowerCase().contains('cancel')) {
+            btnColor = Colors.redAccent;
+          }
+          buttons.add(_buildActionButton(action, btnColor, () => _applyAction(action)));
         }
       }
-
-      for (var action in actionsToAdd) {
-        Color btnColor = AppColors.primary;
-        final actLower = action.toLowerCase();
-        if (actLower.contains('reject') || actLower.contains('cancel')) {
-          btnColor = Colors.redAccent;
-        } else if (actLower.contains('verify') || actLower.contains('approve') || actLower == 'verified' || actLower.contains('submit')) {
-          btnColor = const Color(0xFF10B981);
-        } else if (actLower.contains('review')) {
-          btnColor = const Color(0xFF3B82F6);
+    } else {
+      // Fallback: standard static docstatus mode
+      if (docstatus == 1) {
+        // Fully submitted — show MAKE PAYMENT ENTRY if outstanding, always show CANCEL
+        if ((_salesInvoice.outstandingAmount ?? 0) > 0) {
+          buttons.add(
+            _buildActionButton(
+              'MAKE PAYMENT ENTRY',
+              const Color(0xFF10B981),
+              _makePaymentEntry,
+            ),
+          );
         }
-        buttons.add(_buildActionButton(action, btnColor, () => _applyAction(action)));
+        if (!_hasWorkflow) {
+          // Standard docstatus mode: show CANCEL
+          buttons.add(
+            _buildActionButton('CANCEL', Colors.redAccent, _cancelInvoice),
+          );
+        } else {
+          // Workflow mode: show remaining non-approval workflow actions (e.g. Cancel, Amend)
+          for (var action in _workflowActions) {
+            final actLower = action.toLowerCase();
+            if (actLower.contains('approve') || actLower.contains('verify') || actLower == 'verified' || actLower.contains('submit')) {
+              continue; // skip redundant approval actions
+            }
+            Color btnColor = const Color(0xFF8B5CF6);
+            if (actLower.contains('reject') || actLower.contains('cancel')) btnColor = Colors.redAccent;
+            buttons.add(_buildActionButton(action, btnColor, () => _applyAction(action)));
+          }
+        }
+      } else if (docstatus == 0) {
+        if (_hasWorkflow) {
+          // Draft in workflow — show all workflow actions
+          for (var action in _workflowActions) {
+            final actLower = action.toLowerCase();
+            Color btnColor = const Color(0xFF8B5CF6);
+            if (actLower.contains('reject') || actLower.contains('cancel')) btnColor = Colors.redAccent;
+            if (actLower.contains('verify') || actLower.contains('approve') || actLower == 'verified') btnColor = const Color(0xFF10B981);
+            buttons.add(_buildActionButton(action, btnColor, () => _applyAction(action)));
+          }
+        } else {
+          // Standard docstatus mode: show SUBMIT
+          buttons.add(
+            _buildActionButton('SUBMIT', const Color(0xFF8B5CF6), _submitInvoice),
+          );
+        }
       }
     }
 
@@ -565,7 +695,7 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
         child: Center(
           child: Text(
             label,
-            style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+            style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
           ),
         ),
       ),

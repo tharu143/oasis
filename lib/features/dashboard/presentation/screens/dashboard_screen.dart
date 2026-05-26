@@ -327,6 +327,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       {'title': 'Quotation', 'icon': Icons.request_quote_rounded, 'color': AppColors.primary, 'enabled': true},
       {'title': 'Sales Order', 'icon': Icons.shopping_cart_rounded, 'color': const Color(0xFF10B981), 'enabled': true},
       {'title': 'Delivery Note', 'icon': Icons.local_shipping_rounded, 'color': const Color(0xFF8B5CF6), 'enabled': true},
+      {'title': 'Sales Invoice', 'icon': Icons.receipt_long_rounded, 'color': const Color(0xFF6366F1), 'enabled': true},
       {'title': 'Purchase Order', 'icon': Icons.shopping_bag_rounded, 'color': const Color(0xFFF59E0B), 'enabled': true},
       {'title': 'Material Request', 'icon': Icons.inventory_2_rounded, 'color': const Color(0xFF06B6D4), 'enabled': true},
       {'title': 'Journal Entry', 'icon': Icons.account_balance_wallet_rounded, 'color': const Color(0xFFEC4899), 'enabled': true},
@@ -386,6 +387,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                     Navigator.pushNamed(context, '/sales-order-dashboard');
                   } else if (module['title'] == 'Delivery Note') {
                     Navigator.pushNamed(context, '/delivery-note-dashboard');
+                  } else if (module['title'] == 'Sales Invoice') {
+                    Navigator.pushNamed(context, '/sales-invoice-dashboard');
                   } else if (module['title'] == 'Purchase Order') {
                     Navigator.pushNamed(context, '/purchase-order-dashboard');
                   } else if (module['title'] == 'Material Request') {

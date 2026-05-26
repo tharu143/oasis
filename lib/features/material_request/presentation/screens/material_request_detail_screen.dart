@@ -123,7 +123,14 @@ class _MaterialRequestDetailScreenState extends State<MaterialRequestDetailScree
         },
       );
 
-      final msg = res['message'] ?? 'Action applied successfully';
+      String msg = 'Action applied successfully';
+      if (res['message'] != null) {
+        if (res['message'] is Map) {
+          msg = res['message']['message'] ?? 'Action applied successfully';
+        } else {
+          msg = res['message'].toString();
+        }
+      }
       setState(() => _isLoading = false);
 
       if (mounted) {
@@ -329,9 +336,17 @@ class _MaterialRequestDetailScreenState extends State<MaterialRequestDetailScree
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label, style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
-          Text(value, style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+            ),
+          ),
         ],
       ),
     );
@@ -465,9 +480,17 @@ class _MaterialRequestDetailScreenState extends State<MaterialRequestDetailScree
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(role, style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
-          Text(value, style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+            ),
+          ),
         ],
       ),
     );
@@ -476,83 +499,47 @@ class _MaterialRequestDetailScreenState extends State<MaterialRequestDetailScree
   Widget _buildBottomActionTransitions(MaterialRequestModel doc) {
     if (_workflowActions.isEmpty) return const SizedBox.shrink();
 
-    // Context authorized action rules mapping:
-    // Purchase requests: Submit straight
-    // Non-purchase requests: Draft -> Review (Pending), Pending -> Verified (Finance Team), Verified -> Approve (MD)
-    final state = (doc.workflowState ?? 'Draft').toLowerCase();
- 
-    // Check roles representation in SharedPreferences Roles:
-    bool isPurchaseUser = false;
-    bool isAccountant = false;
-    bool isOasisManager = false;
-
-    for (var r in _userRoles) {
-      final lr = r.toLowerCase();
-      if (lr.contains('purchase') || lr.contains('sales') || lr.contains('stock') || lr.contains('desk')) {
-        isPurchaseUser = true;
-      }
-      if (lr.contains('account') || lr.contains('finance')) {
-        isAccountant = true;
-      }
-      if (lr.contains('manager') || lr.contains('md') || lr.contains('oasis')) {
-        isOasisManager = true;
-      }
-    }
-
     List<Widget> buttons = [];
 
     for (var action in _workflowActions) {
-      bool show = false;
+      final actLower = action.toLowerCase();
+      final isReject = actLower.contains('reject') || actLower.contains('cancel');
+      final isSuccess = actLower.contains('approve') || actLower.contains('verify') || actLower.contains('review') || actLower.contains('submit') || actLower.contains('verified');
+      
+      Color bgColor = AppColors.primary;
+      if (isSuccess) bgColor = const Color(0xFF10B981);
+      if (isReject) bgColor = const Color(0xFFEF4444);
 
-      if (state == 'draft' && isPurchaseUser) {
-        if (action == 'Submit' || action == 'Review') {
-          show = true;
-        }
-      }
-      if (state == 'pending') {
-        if (isPurchaseUser && action == 'Submit') {
-          show = true;
-        }
-        if (isAccountant && (action == 'Verified' || action == 'Reject')) {
-          show = true;
-        }
-      }
-      if (state.contains('verified by finance') && isOasisManager) {
-        if (action == 'Approve' || action == 'Reject') {
-          show = true;
-        }
-      }
-
-      if (show) {
-        final isReject = action == 'Reject';
-        buttons.add(
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: ElevatedButton(
-                onPressed: () => _applyWorkflowAction(action),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isReject ? AppColors.rejectedMD : AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  elevation: 0,
-                ),
-                child: Text(
-                  action == 'Review'
-                      ? 'Submit for Review'
-                      : action == 'Verified'
-                          ? 'Verify Request'
-                          : action == 'Approve'
-                              ? 'Approve Request'
-                              : '$action Request',
-                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 13),
-                ),
+      buttons.add(
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: ElevatedButton(
+              onPressed: () => _applyWorkflowAction(action),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: bgColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                minimumSize: const Size(0, 50),
+                elevation: 0,
+              ),
+              child: Text(
+                action == 'Review'
+                    ? 'Submit for Review'
+                    : action == 'Verified'
+                        ? 'Verify Request'
+                        : action == 'Verify'
+                            ? 'Verify Request'
+                            : action == 'Approve'
+                                ? 'Approve Request'
+                                : '$action Request',
+                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 13),
               ),
             ),
           ),
-        );
-      }
+        ),
+      );
     }
 
     if (buttons.isEmpty) return const SizedBox.shrink();

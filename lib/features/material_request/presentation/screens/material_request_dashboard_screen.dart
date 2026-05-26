@@ -244,7 +244,7 @@ class _MaterialRequestDashboardScreenState extends State<MaterialRequestDashboar
                 MaterialPageRoute(
                   builder: (_) => const MaterialRequestListScreen(initialState: 'Pending'),
                 ),
-              );
+              ).then((_) => _fetchDashboardData());
             },
           )
         ],
@@ -264,35 +264,32 @@ class _MaterialRequestDashboardScreenState extends State<MaterialRequestDashboar
     final verifiedVal = stats['Verified By Finance Team'] ?? 0;
     final rejectedFinanceVal = stats['Rejected By Finance Team'] ?? 0;
     final rejectedMdVal = stats['Rejected By MD'] ?? 0;
-    final approvedVal = stats['Approved By MD'] ?? stats['Submitted'] ?? 0;
+    final approvedVal = stats['Approved By MD'] ?? 0;
     final submittedVal = stats['Submitted'] ?? 0;
     
-    final totalVal = stats['Total'] ?? (draftVal + pendingVal + verifiedVal + rejectedFinanceVal + rejectedMdVal + approvedVal);
+    final totalVal = stats['Total'] ?? (draftVal + pendingVal + verifiedVal + rejectedFinanceVal + rejectedMdVal + approvedVal + submittedVal);
 
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
+      crossAxisSpacing: 14,
+      mainAxisSpacing: 14,
       childAspectRatio: 1.4,
       children: [
-        _buildStatCard('Draft', draftVal, AppColors.draft, Icons.mode_edit_rounded),
-        _buildStatCard('Pending', pendingVal, AppColors.pendingFinance, Icons.hourglass_empty_rounded),
-        _buildStatCard('Verified', verifiedVal, AppColors.verifiedFinance, Icons.verified_user_rounded),
-        _buildStatCard('Rejected', rejectedFinanceVal + rejectedMdVal, AppColors.rejectedMD, Icons.cancel_rounded),
-        _buildStatCard('Approved / Submitted', approvedVal + submittedVal, AppColors.approvedMD, Icons.check_circle_rounded),
-        _buildStatCard('Total Requests', totalVal, AppColors.primary, Icons.folder_rounded),
+        _buildStatCard('Draft', draftVal, Colors.grey, Icons.mode_edit_rounded, stateFilter: 'Draft'),
+        _buildStatCard('Pending', pendingVal, Colors.amber, Icons.hourglass_empty_rounded, stateFilter: 'Pending'),
+        _buildStatCard('Verified by Finance', verifiedVal, Colors.blueAccent, Icons.verified_user_rounded, stateFilter: 'Verified By Finance Team'),
+        _buildStatCard('Rejected by Finance', rejectedFinanceVal, Colors.redAccent, Icons.cancel_rounded, stateFilter: 'Rejected By Finance Team'),
+        _buildStatCard('Rejected by MD', rejectedMdVal, Colors.deepOrangeAccent, Icons.unpublished_rounded, stateFilter: 'Rejected By MD'),
+        _buildStatCard('Approved by MD', approvedVal, Colors.teal, Icons.check_circle_rounded, stateFilter: 'Approved By MD'),
+        _buildStatCard('Submitted', submittedVal, Colors.green, Icons.send_rounded, stateFilter: 'Submitted'),
+        _buildStatCard('Total Requests', totalVal, Colors.blueGrey, Icons.folder_rounded, stateFilter: ''),
       ],
     );
   }
 
-  Widget _buildStatCard(String title, int count, Color color, IconData icon) {
-    String stateFilter = title;
-    if (title.contains('Approved')) stateFilter = 'Approved By MD';
-    if (title.contains('Total')) stateFilter = '';
-    if (title == 'Rejected') stateFilter = 'Rejected By Finance Team';
-
+  Widget _buildStatCard(String title, int count, Color color, IconData icon, {required String stateFilter}) {
     return InkWell(
       onTap: () {
         Navigator.push(
@@ -300,7 +297,7 @@ class _MaterialRequestDashboardScreenState extends State<MaterialRequestDashboar
           MaterialPageRoute(
             builder: (_) => MaterialRequestListScreen(initialState: stateFilter),
           ),
-        );
+        ).then((_) => _fetchDashboardData());
       },
       borderRadius: BorderRadius.circular(24),
       child: Container(
@@ -316,7 +313,7 @@ class _MaterialRequestDashboardScreenState extends State<MaterialRequestDashboar
             )
           ],
         ),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,

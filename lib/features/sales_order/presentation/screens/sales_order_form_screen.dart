@@ -8,7 +8,8 @@ import 'package:oasis/features/sales_order/models/sales_order_model.dart';
 
 class SalesOrderFormScreen extends StatefulWidget {
   final SalesOrderModel? salesOrder;
-  const SalesOrderFormScreen({super.key, this.salesOrder});
+  final Map<String, dynamic>? initialData;
+  const SalesOrderFormScreen({super.key, this.salesOrder, this.initialData});
 
   @override
   State<SalesOrderFormScreen> createState() => _SalesOrderFormScreenState();
@@ -95,6 +96,58 @@ class _SalesOrderFormScreenState extends State<SalesOrderFormScreen> with Ticker
         'disable_rounded_total': 0,
         'total_qty': so.items.fold<double>(0, (sum, item) => sum + item.qty),
       };
+    } else if (widget.initialData != null) {
+      final cleaned = Map<String, dynamic>.from(widget.initialData!);
+      final systemKeys = [
+        'name', 'creation', 'modified', 'modified_by', 'owner', 'docstatus',
+        'idx', 'amended_from', 'workflow_state', 'workflow_actions', 'status'
+      ];
+      for (var key in systemKeys) {
+        cleaned.remove(key);
+      }
+      if (cleaned['items'] is List) {
+        cleaned['items'] = (cleaned['items'] as List).map((item) {
+          final itemMap = Map<String, dynamic>.from(item);
+          final itemSystemKeys = ['name', 'parent', 'parentfield', 'parenttype', 'creation', 'modified', 'modified_by', 'owner', 'docstatus', 'idx'];
+          for (var key in itemSystemKeys) {
+            itemMap.remove(key);
+          }
+          return itemMap;
+        }).toList();
+      }
+      _doc = cleaned;
+      _doc['company'] ??= 'Oasis Trading and Importing HVAC';
+      _doc['customer'] ??= '';
+      _doc['customer_name'] ??= '';
+      _doc['custom_customer_name_in_arabic'] ??= '';
+      _doc['transaction_date'] ??= todayStr;
+      _doc['delivery_date'] ??= deliveryStr;
+      _doc['order_type'] ??= 'Sales';
+      _doc['currency'] ??= 'QAR';
+      _doc['conversion_rate'] ??= 1.0;
+      _doc['selling_price_list'] ??= 'Standard Selling';
+      _doc['price_list_currency'] ??= 'QAR';
+      _doc['plc_conversion_rate'] ??= 1.0;
+      _doc['custom_quote_type'] ??= 'Retail';
+      _doc['custom_retail_quote_type'] ??= 'Supply Only';
+      _doc['custom_subject'] ??= '';
+      _doc['custom_ref'] ??= '';
+      _doc['custom_prepared_by'] ??= '';
+      _doc['custom_verified_by'] ??= '';
+      _doc['custom_approved_by'] ??= '';
+      _doc['custom_terms_details_arabic'] ??= '';
+      _doc['grand_total'] ??= 0.0;
+      _doc['net_total'] ??= 0.0;
+      _doc['items'] ??= <Map<String, dynamic>>[];
+      _doc['payment_terms_template'] ??= '';
+      _doc['payment_schedule'] ??= <Map<String, dynamic>>[];
+      _doc['quotation_link'] ??= '';
+      _doc['disable_rounded_total'] ??= 0;
+      _doc['total_qty'] ??= 0.0;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _recalculateTotals();
+      });
     } else {
       _doc = {
         'company': 'Oasis Trading and Importing HVAC',
@@ -1178,13 +1231,17 @@ class _SalesOrderFormScreenState extends State<SalesOrderFormScreen> with Ticker
       children: [
         Icon(icon, size: 20, color: AppColors.accent),
         const SizedBox(width: 8),
-        Text(
-          title,
-          style: GoogleFonts.outfit(
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-            color: AppColors.accent,
-            letterSpacing: 1.2,
+        Expanded(
+          child: Text(
+            title,
+            style: GoogleFonts.outfit(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: AppColors.accent,
+              letterSpacing: 1.2,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
@@ -1355,7 +1412,7 @@ class _SalesOrderFormScreenState extends State<SalesOrderFormScreen> with Ticker
           }
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             color: Colors.white,
@@ -1364,15 +1421,20 @@ class _SalesOrderFormScreenState extends State<SalesOrderFormScreen> with Ticker
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                value ?? 'Pick Date',
-                style: GoogleFonts.outfit(
-                  fontWeight: FontWeight.w600,
-                  color: value != null ? AppColors.textPrimary : AppColors.textLight,
-                  fontSize: 14,
+              Expanded(
+                child: Text(
+                  value ?? 'Pick Date',
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.w600,
+                    color: value != null ? AppColors.textPrimary : AppColors.textLight,
+                    fontSize: 13,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Icon(Icons.calendar_month_rounded, size: 18, color: AppColors.textLight),
+              const SizedBox(width: 4),
+              const Icon(Icons.calendar_month_rounded, size: 16, color: AppColors.textLight),
             ],
           ),
         ),
@@ -1422,41 +1484,36 @@ class _SalesOrderFormScreenState extends State<SalesOrderFormScreen> with Ticker
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.8,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-            border: Border(top: BorderSide(color: AppColors.border, width: 1.0)),
-          ),
-          child: Column(
-            children: [
-              Container(
-                width: 45,
-                height: 5,
-                margin: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(10)),
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.8,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+          border: Border(top: BorderSide(color: AppColors.border, width: 1.0)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 45,
+              height: 5,
+              margin: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(10)),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              child: Text(
+                title.toUpperCase(),
+                style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: 1.0),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                child: Text(
-                  title.toUpperCase(),
-                  style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: 1.0),
-                ),
+            ),
+            const Divider(color: AppColors.border),
+            Expanded(
+              child: SearchableList(
+                doctype: doctype,
+                onSelected: onSelected,
               ),
-              const Divider(color: AppColors.border),
-              Expanded(
-                child: SearchableList(
-                  doctype: doctype,
-                  onSelected: onSelected,
-                  scrollController: scrollController,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1673,13 +1730,11 @@ class _ScaleButtonState extends State<ScaleButton> with SingleTickerProviderStat
 class SearchableList extends StatefulWidget {
   final String doctype;
   final Function(String) onSelected;
-  final ScrollController scrollController;
 
   const SearchableList({
     super.key,
     required this.doctype,
     required this.onSelected,
-    required this.scrollController,
   });
 
   @override
@@ -1807,7 +1862,6 @@ class _SearchableListState extends State<SearchableList> {
                   ),
                 )
               : ListView.builder(
-                  controller: widget.scrollController,
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                   itemCount: _filteredItems.length,
                   itemBuilder: (context, index) {

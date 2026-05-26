@@ -18,6 +18,7 @@ class DeliveryNoteModel {
   final String? customPreparedBy;
   final String? customVerifiedBy;
   final String? customApprovedBy;
+  final int docstatus;
   final double? grandTotal;
   final double? netTotal;
   final List<DeliveryNoteItemModel> items;
@@ -39,6 +40,7 @@ class DeliveryNoteModel {
     this.customPreparedBy,
     this.customVerifiedBy,
     this.customApprovedBy,
+    this.docstatus = 0,
     this.grandTotal,
     this.netTotal,
     required this.items,
@@ -62,6 +64,7 @@ class DeliveryNoteModel {
       customPreparedBy: json['custom_prepared_by'] ?? json['custom_prepared_by_name'] ?? '',
       customVerifiedBy: json['custom_verified_by'] ?? json['custom_verified_by_name'] ?? '',
       customApprovedBy: json['custom_approved_by'] ?? json['custom_approved_by_name'] ?? '',
+      docstatus: json['docstatus'] is int ? json['docstatus'] : (json['docstatus'] != null ? int.tryParse(json['docstatus'].toString()) ?? 0 : 0),
       grandTotal: (json['grand_total'] ?? json['base_grand_total'] ?? 0.0).toDouble(),
       netTotal: (json['net_total'] ?? json['base_total'] ?? 0.0).toDouble(),
       items: (json['items'] as List?)

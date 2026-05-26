@@ -49,8 +49,15 @@ import 'features/journal_entry/presentation/screens/journal_entry_list_screen.da
 import 'features/payment_entry/models/payment_entry_model.dart';
 import 'features/payment_entry/presentation/screens/payment_entry_dashboard_screen.dart';
 import 'features/payment_entry/presentation/screens/payment_entry_detail_screen.dart';
-import 'features/payment_entry/presentation/screens/payment_entry_form_screen.dart';
-import 'features/payment_entry/presentation/screens/payment_entry_list_screen.dart';
+import 'package:oasis/features/payment_entry/presentation/screens/payment_entry_form_screen.dart';
+import 'package:oasis/features/payment_entry/presentation/screens/payment_entry_list_screen.dart';
+
+// Sales Invoice Screen Imports
+import 'package:oasis/features/sales_invoice/models/sales_invoice_model.dart';
+import 'package:oasis/features/sales_invoice/presentation/screens/sales_invoice_dashboard_screen.dart';
+import 'package:oasis/features/sales_invoice/presentation/screens/sales_invoice_detail_screen.dart';
+import 'package:oasis/features/sales_invoice/presentation/screens/sales_invoice_form_screen.dart';
+import 'package:oasis/features/sales_invoice/presentation/screens/sales_invoice_list_screen.dart';
 
 
 /// Global navigator key — used by FcmService for deep-link routing on notification tap.
@@ -117,6 +124,11 @@ class OasisApp extends StatelessWidget {
         '/payment-entry-dashboard': (context) => const PaymentEntryDashboardScreen(),
         '/payment-entry-list': (context) => const PaymentEntryListScreen(),
         '/payment-entry-form': (context) => const PaymentEntryFormScreen(),
+
+        // Sales Invoice Routes
+        '/sales-invoice-dashboard': (context) => const SalesInvoiceDashboardScreen(),
+        '/sales-invoice-list': (context) => const SalesInvoiceListScreen(),
+        '/sales-invoice-form': (context) => const SalesInvoiceFormScreen(),
       },
       // onGenerateRoute handles dynamic routes — e.g. deep-linking with a docname
       onGenerateRoute: (settings) {
@@ -236,6 +248,28 @@ class OasisApp extends StatelessWidget {
           );
           return MaterialPageRoute(
             builder: (_) => PaymentEntryDetailScreen(paymentEntry: stub),
+            settings: settings,
+          );
+        }
+
+        if (settings.name == '/sales-invoice-detail') {
+          final docname = settings.arguments as String? ?? '';
+          final stub = SalesInvoiceModel(
+            name: docname,
+            customer: '',
+            customerName: '',
+            postingDate: '',
+            dueDate: '',
+            currency: 'QAR',
+            conversionRate: 1.0,
+            sellingPriceList: 'Standard Selling',
+            priceListCurrency: 'QAR',
+            plcConversionRate: 1.0,
+            outstandingAmount: 0.0,
+            items: [],
+          );
+          return MaterialPageRoute(
+            builder: (_) => SalesInvoiceDetailScreen(salesInvoice: stub),
             settings: settings,
           );
         }

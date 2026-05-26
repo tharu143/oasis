@@ -7,7 +7,8 @@ import '../../models/material_request_model.dart';
 
 class MaterialRequestFormScreen extends StatefulWidget {
   final MaterialRequestModel? materialRequest;
-  const MaterialRequestFormScreen({super.key, this.materialRequest});
+  final Map<String, dynamic>? initialData;
+  const MaterialRequestFormScreen({super.key, this.materialRequest, this.initialData});
 
   @override
   State<MaterialRequestFormScreen> createState() => _MaterialRequestFormScreenState();
@@ -66,6 +67,41 @@ class _MaterialRequestFormScreenState extends State<MaterialRequestFormScreen> w
         'custom_approved_by_name': mr.customApprovedByName ?? '',
         'items': mr.items.map((e) => e.toJson()).toList(),
       };
+    } else if (widget.initialData != null) {
+      final cleaned = Map<String, dynamic>.from(widget.initialData!);
+      final systemKeys = [
+        'name', 'creation', 'modified', 'modified_by', 'owner', 'docstatus',
+        'idx', 'amended_from', 'workflow_state', 'workflow_actions', 'status'
+      ];
+      for (var key in systemKeys) {
+        cleaned.remove(key);
+      }
+      if (cleaned['items'] is List) {
+        cleaned['items'] = (cleaned['items'] as List).map((item) {
+          final itemMap = Map<String, dynamic>.from(item);
+          final itemSystemKeys = ['name', 'parent', 'parentfield', 'parenttype', 'creation', 'modified', 'modified_by', 'owner', 'docstatus', 'idx'];
+          for (var key in itemSystemKeys) {
+            itemMap.remove(key);
+          }
+          return itemMap;
+        }).toList();
+      }
+      _doc = cleaned;
+      _doc['company'] ??= 'Oasis Trading and Importing HVAC';
+      _doc['material_request_type'] ??= 'Purchase';
+      _doc['transaction_date'] ??= todayStr;
+      _doc['workflow_state'] ??= 'Draft';
+      _doc['custom_subject'] ??= '';
+      _doc['custom_customer'] ??= '';
+      _doc['custom_sales_order'] ??= '';
+      _doc['custom_requested_by'] ??= '';
+      _doc['custom_requested_by_name'] ??= '';
+      _doc['custom_remarks'] ??= '';
+      _doc['custom_checked_by'] ??= '';
+      _doc['custom_checked_by_name'] ??= '';
+      _doc['custom_approved_by'] ??= '';
+      _doc['custom_approved_by_name'] ??= '';
+      _doc['items'] ??= <Map<String, dynamic>>[];
     } else {
       _doc = {
         'company': 'Oasis Trading and Importing HVAC',
@@ -624,6 +660,7 @@ class _MaterialRequestFormScreenState extends State<MaterialRequestFormScreen> w
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  minimumSize: const Size(80, 40),
                 ),
                 icon: const Icon(Icons.add_rounded, size: 16),
                 label: Text(
@@ -999,18 +1036,22 @@ class _MaterialRequestFormScreenState extends State<MaterialRequestFormScreen> w
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           if (_currentTabIndex > 0)
-            ElevatedButton(
-              onPressed: () {
-                _tabController.animateTo(_currentTabIndex - 1);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFF1F5F9),
-                foregroundColor: AppColors.textPrimary,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                elevation: 0,
+            SizedBox(
+              width: 56,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: () {
+                  _tabController.animateTo(_currentTabIndex - 1);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF1F5F9),
+                  foregroundColor: AppColors.textPrimary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  padding: EdgeInsets.zero,
+                  elevation: 0,
+                ),
+                child: const Icon(Icons.arrow_back_rounded),
               ),
-              child: const Icon(Icons.arrow_back_rounded),
             )
           else
             const SizedBox.shrink(),

@@ -121,23 +121,51 @@ class _PaymentEntryDetailScreenState extends State<PaymentEntryDetailScreen> {
         },
       );
 
-      final msg = res['message'] ?? 'Action applied successfully';
+      // res['message'] can be a Map {status, message, workflow_state}
+      // or a plain String — handle both safely.
+      final dynamic rawMsg = res['message'];
+      final String displayMsg;
+      if (rawMsg is Map) {
+        displayMsg = rawMsg['message']?.toString() ?? 'Action applied successfully';
+      } else {
+        displayMsg = rawMsg?.toString() ?? 'Action applied successfully';
+      }
+
       setState(() => _isLoading = false);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), backgroundColor: AppColors.approvedMD),
+          SnackBar(content: Text(displayMsg), backgroundColor: AppColors.approvedMD),
         );
       }
       _fetchDetails();
     } catch (e) {
+      final errStr = _cleanHtml(e.toString());
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Action failed: $e'), backgroundColor: AppColors.rejectedMD),
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: Text('Action Failed', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
+            content: Text(errStr, style: GoogleFonts.plusJakartaSans()),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('OK', style: GoogleFonts.plusJakartaSans(color: AppColors.primary, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
         );
       }
     }
+  }
+
+  /// Strip HTML tags from server error messages for clean display.
+  String _cleanHtml(String raw) {
+    return raw
+        .replaceAll(RegExp(r'<[^>]*>'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
   }
 
   @override

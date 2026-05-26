@@ -254,14 +254,56 @@ class FcmService {
 
       debugPrint('🔗 [FCM DeepLink] doctype=$doctype docname=$docname');
 
-      if (navigatorKey?.currentState == null) return;
+      if (navigatorKey?.currentState == null || docname == null || docname.isEmpty) return;
 
       // Route based on doctype sent by ERPNext workflow hook
       switch (doctype) {
         case 'Quotation':
           navigatorKey!.currentState!.pushNamed(
             '/quotation-detail',
-            arguments: {'name': docname},
+            arguments: docname,
+          );
+          break;
+        case 'Sales Order':
+          navigatorKey!.currentState!.pushNamed(
+            '/sales-order-detail',
+            arguments: docname,
+          );
+          break;
+        case 'Delivery Note':
+          navigatorKey!.currentState!.pushNamed(
+            '/delivery-note-detail',
+            arguments: docname,
+          );
+          break;
+        case 'Purchase Order':
+          navigatorKey!.currentState!.pushNamed(
+            '/purchase-order-detail',
+            arguments: docname,
+          );
+          break;
+        case 'Material Request':
+          navigatorKey!.currentState!.pushNamed(
+            '/material-request-detail',
+            arguments: docname,
+          );
+          break;
+        case 'Journal Entry':
+          navigatorKey!.currentState!.pushNamed(
+            '/journal-entry-detail',
+            arguments: docname,
+          );
+          break;
+        case 'Payment Entry':
+          navigatorKey!.currentState!.pushNamed(
+            '/payment-entry-detail',
+            arguments: docname,
+          );
+          break;
+        case 'Sales Invoice':
+          navigatorKey!.currentState!.pushNamed(
+            '/sales-invoice-detail',
+            arguments: docname,
           );
           break;
         default:

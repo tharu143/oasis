@@ -4,6 +4,8 @@ import 'package:intl/intl.dart' as intl;
 import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
 import 'package:oasis/features/sales_order/models/sales_order_model.dart';
+import 'package:oasis/features/material_request/presentation/screens/material_request_form_screen.dart';
+import 'package:oasis/features/delivery_note/presentation/screens/delivery_note_form_screen.dart';
 
 class SalesOrderDetailScreen extends StatefulWidget {
   final SalesOrderModel salesOrder;
@@ -483,69 +485,187 @@ class _SalesOrderDetailScreenState extends State<SalesOrderDetailScreen> {
     );
   }
 
-  Widget _buildFloatingBottomActions() {
-    if (_workflowActions.isEmpty) return const SizedBox.shrink();
-
-    // Check if we are in 'Pending' workflow state to display special two-button split
-    final state = (_salesOrder.workflowState ?? '').toLowerCase();
-    
-    if (state.contains('pending')) {
-      // Find exact actions for Approve/Verify and Reject
-      String? verifyAction;
-      String? rejectAction;
-      for (var action in _workflowActions) {
-        final actLower = action.toLowerCase();
-        if (actLower.contains('verify') || actLower.contains('approve') || actLower == 'verified') {
-          verifyAction = action;
-        } else if (actLower.contains('reject')) {
-          rejectAction = action;
-        }
-      }
-
-      verifyAction ??= _workflowActions.first; // Default fallback
-      
-      return Positioned(
-        bottom: 0, left: 0, right: 0,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(24, 20, 24, 34),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, -5))],
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Row(
-            children: [
-              if (rejectAction != null)
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: _buildActionButton(
-                      rejectAction.toUpperCase(), 
-                      Colors.white, 
-                      Colors.red, 
-                      borderColor: Colors.red,
-                      onTap: () => _applyAction(rejectAction!),
-                    ),
-                  ),
-                ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  child: _buildActionButton(
-                    verifyAction.toUpperCase(), 
-                    const Color(0xFF10B981), 
-                    Colors.white, 
-                    onTap: () => _applyAction(verifyAction!),
-                  ),
-                ),
+  Future<void> _makeMaterialRequest() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await _apiClient.post(
+        'oasis_mobile.api.mapping.map_sales_order_to_material_request',
+        {'source_name': _salesOrder.name ?? ''},
+      );
+      setState(() => _isLoading = false);
+      if (response['message'] != null) {
+        if (mounted) {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MaterialRequestFormScreen(
+                initialData: Map<String, dynamic>.from(response['message']),
               ),
-            ],
+            ),
+          );
+          if (result == true) {
+            _fetchDetails();
+          }
+        }
+      } else {
+        throw 'Failed to map sales order to material request';
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error mapping document: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _makeDeliveryNote() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await _apiClient.post(
+        'oasis_mobile.api.mapping.map_sales_order_to_delivery_note',
+        {'source_name': _salesOrder.name ?? ''},
+      );
+      setState(() => _isLoading = false);
+      if (response['message'] != null) {
+        if (mounted) {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DeliveryNoteFormScreen(
+                initialData: Map<String, dynamic>.from(response['message']),
+              ),
+            ),
+          );
+          if (result == true) {
+            _fetchDetails();
+          }
+        }
+      } else {
+        throw 'Failed to map sales order to delivery note';
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error mapping document: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Widget _buildFloatingBottomActions() {
+    final state = (_salesOrder.workflowState ?? '').toLowerCase();
+    // docstatus == 1 means the document is fully submitted/approved (workflow complete)
+    final bool isFullyApproved = _salesOrder.docstatus == 1;
+
+    List<Widget> buttons = [];
+
+    // If the document is fully approved (docstatus == 1), ALWAYS show transition buttons
+    if (isFullyApproved) {
+      buttons.add(
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: _buildActionButton(
+              'MAKE MATERIAL REQUEST',
+              const Color(0xFF06B6D4),
+              Colors.white,
+              onTap: _makeMaterialRequest,
+            ),
           ),
         ),
       );
+      buttons.add(
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: _buildActionButton(
+              'MAKE DELIVERY NOTE',
+              const Color(0xFF8B5CF6),
+              Colors.white,
+              onTap: _makeDeliveryNote,
+            ),
+          ),
+        ),
+      );
+    } else {
+      // Document still in workflow - show the workflow action buttons
+      if (state.contains('pending')) {
+        // Pending state: show Reject (outlined red) + Verify (green)
+        String? verifyAction;
+        String? rejectAction;
+        for (var action in _workflowActions) {
+          final actLower = action.toLowerCase();
+          if (actLower.contains('verify') || actLower.contains('approve') || actLower == 'verified') {
+            verifyAction = action;
+          } else if (actLower.contains('reject')) {
+            rejectAction = action;
+          }
+        }
+        verifyAction ??= _workflowActions.isNotEmpty ? _workflowActions.first : null;
+
+        if (rejectAction != null) {
+          buttons.add(
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: _buildActionButton(
+                  rejectAction.toUpperCase(),
+                  Colors.white,
+                  Colors.red,
+                  borderColor: Colors.red,
+                  onTap: () => _applyAction(rejectAction!),
+                ),
+              ),
+            ),
+          );
+        }
+        if (verifyAction != null) {
+          buttons.add(
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: _buildActionButton(
+                  verifyAction.toUpperCase(),
+                  const Color(0xFF10B981),
+                  Colors.white,
+                  onTap: () => _applyAction(verifyAction!),
+                ),
+              ),
+            ),
+          );
+        }
+      } else {
+        // Other workflow states: map all available actions
+        for (var action in _workflowActions) {
+          final actLower = action.toLowerCase();
+          bool isSuccess = actLower.contains('approve') || actLower.contains('verify') || actLower.contains('review') || actLower.contains('submit');
+          bool isReject = actLower.contains('reject') || actLower.contains('cancel');
+          Color bgColor = AppColors.primary;
+          if (isSuccess) bgColor = const Color(0xFF10B981);
+          if (isReject) bgColor = const Color(0xFFEF4444);
+
+          buttons.add(
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: _buildActionButton(
+                  action.toUpperCase(),
+                  bgColor,
+                  Colors.white,
+                  onTap: () => _applyAction(action),
+                ),
+              ),
+            ),
+          );
+        }
+      }
     }
 
-    // Default sequential button mapping
+    if (buttons.isEmpty) return const SizedBox.shrink();
+
     return Positioned(
       bottom: 0, left: 0, right: 0,
       child: Container(
@@ -556,20 +676,7 @@ class _SalesOrderDetailScreenState extends State<SalesOrderDetailScreen> {
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Row(
-          children: _workflowActions.map((action) {
-            final actionLower = action.toLowerCase();
-            bool isSuccess = actionLower.contains('approve') || actionLower.contains('verify') || actionLower.contains('review') || actionLower.contains('submit');
-            bool isReject = actionLower.contains('reject');
-            Color bgColor = AppColors.primary;
-            if (isSuccess) bgColor = const Color(0xFF10B981);
-            if (isReject) bgColor = const Color(0xFFEF4444);
-            return Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: _buildActionButton(action.toUpperCase(), bgColor, Colors.white, onTap: () => _applyAction(action)),
-              ),
-            );
-          }).toList(),
+          children: buttons,
         ),
       ),
     );

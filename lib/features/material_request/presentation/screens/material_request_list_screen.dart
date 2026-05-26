@@ -34,6 +34,7 @@ class _MaterialRequestListScreenState extends State<MaterialRequestListScreen> {
     'Pending',
     'Verified By Finance Team',
     'Rejected By Finance Team',
+    'Rejected By MD',
     'Approved By MD',
     'Submitted',
   ];

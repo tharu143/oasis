@@ -4,6 +4,7 @@ import 'package:intl/intl.dart' as intl;
 import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
 import 'package:oasis/features/quotation/models/quotation_model.dart';
+import 'package:oasis/features/sales_order/presentation/screens/sales_order_form_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class QuotationDetailScreen extends StatefulWidget {
@@ -850,8 +851,90 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
     return html.replaceAll(RegExp(r'<[^>]*>|&nbsp;'), ' ').trim();
   }
 
+  Future<void> _makeSalesOrder() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await _apiClient.post(
+        'oasis_mobile.api.mapping.map_quotation_to_sales_order',
+        {'source_name': _quotation.name},
+      );
+      setState(() => _isLoading = false);
+      if (response['message'] != null) {
+        if (mounted) {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => SalesOrderFormScreen(
+                initialData: Map<String, dynamic>.from(response['message']),
+              ),
+            ),
+          );
+          if (result == true) {
+            _fetchDetails();
+          }
+        }
+      } else {
+        throw 'Failed to map quotation to sales order';
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error mapping document: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Widget _buildFloatingBottomActions() {
-    if (_quotation.workflowActions.isEmpty || _quotation.docstatus == 1) return const SizedBox.shrink();
+    // docstatus == 1 means the document is fully submitted/approved (workflow complete)
+    final bool isFullyApproved = _quotation.docstatus == 1;
+
+    List<Widget> buttons = [];
+
+    if (isFullyApproved) {
+      // Workflow complete — always show MAKE SALES ORDER
+      buttons.add(
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: _buildActionButton(
+              'MAKE SALES ORDER',
+              AppColors.primary,
+              Colors.white,
+              onTap: _makeSalesOrder,
+            ),
+          ),
+        ),
+      );
+    } else {
+      // Document still in workflow — show workflow action buttons only
+      for (var action in _quotation.workflowActions) {
+        final actLower = action.toLowerCase();
+        bool isSuccess = actLower.contains('approve') || actLower.contains('verify') || actLower.contains('review') || actLower.contains('submit');
+        bool isReject = actLower.contains('reject') || actLower.contains('cancel');
+        Color bgColor = AppColors.primary;
+        if (isSuccess) bgColor = const Color(0xFF10B981);
+        if (isReject) bgColor = const Color(0xFFEF4444);
+
+        buttons.add(
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: _buildActionButton(
+                action.toUpperCase(),
+                bgColor,
+                Colors.white,
+                onTap: () => _applyAction(action),
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    if (buttons.isEmpty) return const SizedBox.shrink();
+
     return Positioned(
       bottom: 0, left: 0, right: 0,
       child: Container(
@@ -862,20 +945,7 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Row(
-          children: _quotation.workflowActions.map((action) {
-            final actionLower = action.toLowerCase();
-            bool isSuccess = actionLower.contains('approve') || actionLower.contains('verify');
-            bool isReject = actionLower.contains('reject');
-            Color bgColor = AppColors.primary;
-            if (isSuccess) bgColor = const Color(0xFF10B981);
-            if (isReject) bgColor = const Color(0xFFEF4444);
-            return Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: _buildActionButton(action.toUpperCase(), bgColor, Colors.white, onTap: () => _applyAction(action)),
-              ),
-            );
-          }).toList(),
+          children: buttons,
         ),
       ),
     );

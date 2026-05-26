@@ -7,7 +7,8 @@ import 'package:oasis/features/delivery_note/models/delivery_note_model.dart';
 
 class DeliveryNoteFormScreen extends StatefulWidget {
   final DeliveryNoteModel? deliveryNote;
-  const DeliveryNoteFormScreen({super.key, this.deliveryNote});
+  final Map<String, dynamic>? initialData;
+  const DeliveryNoteFormScreen({super.key, this.deliveryNote, this.initialData});
 
   @override
   State<DeliveryNoteFormScreen> createState() => _DeliveryNoteFormScreenState();
@@ -79,6 +80,51 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
         'company': 'Oasis Trading and Importing HVAC',
         'total_qty': dn.items.fold<double>(0, (sum, item) => sum + item.qty),
       };
+    } else if (widget.initialData != null) {
+      final cleaned = Map<String, dynamic>.from(widget.initialData!);
+      final systemKeys = [
+        'name', 'creation', 'modified', 'modified_by', 'owner', 'docstatus',
+        'idx', 'amended_from', 'workflow_state', 'workflow_actions', 'status'
+      ];
+      for (var key in systemKeys) {
+        cleaned.remove(key);
+      }
+      if (cleaned['items'] is List) {
+        cleaned['items'] = (cleaned['items'] as List).map((item) {
+          final itemMap = Map<String, dynamic>.from(item);
+          final itemSystemKeys = ['name', 'parent', 'parentfield', 'parenttype', 'creation', 'modified', 'modified_by', 'owner', 'docstatus', 'idx'];
+          for (var key in itemSystemKeys) {
+            itemMap.remove(key);
+          }
+          return itemMap;
+        }).toList();
+      }
+      _doc = cleaned;
+      _doc['company'] ??= 'Oasis Trading and Importing HVAC';
+      _doc['customer'] ??= '';
+      _doc['customer_name'] ??= '';
+      _doc['posting_date'] ??= todayDateStr;
+      _doc['posting_time'] ??= todayTimeStr;
+      _doc['currency'] ??= 'QAR';
+      _doc['conversion_rate'] ??= 1.0;
+      _doc['selling_price_list'] ??= 'Standard Selling';
+      _doc['price_list_currency'] ??= 'QAR';
+      _doc['plc_conversion_rate'] ??= 1.0;
+      _doc['custom_quote_type'] ??= 'Retail';
+      _doc['custom_retail_quote_type'] ??= 'Supply Only';
+      _doc['custom_prepared_by'] ??= '';
+      _doc['custom_verified_by'] ??= '';
+      _doc['custom_approved_by'] ??= '';
+      _doc['grand_total'] ??= 0.0;
+      _doc['net_total'] ??= 0.0;
+      _doc['items'] ??= <Map<String, dynamic>>[];
+      _doc['payment_terms_template'] ??= '';
+      _doc['payment_schedule'] ??= <Map<String, dynamic>>[];
+      _doc['total_qty'] ??= 0.0;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _recalculateTotals();
+      });
     } else {
       _doc = {
         'company': 'Oasis Trading and Importing HVAC',
