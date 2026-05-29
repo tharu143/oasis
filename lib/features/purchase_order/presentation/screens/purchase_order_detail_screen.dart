@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart' as intl;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
+import 'package:oasis/core/widgets/workflow_action_bar.dart';
 import 'package:oasis/features/purchase_order/models/purchase_order_model.dart';
 import 'purchase_order_form_screen.dart';
 
@@ -20,26 +20,34 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
   final ApiClient _apiClient = ApiClient();
   PurchaseOrderModel? _purchaseOrder;
   List<String> _workflowActions = [];
-  List<String> _userRoles = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _fetchDetails();
-    _loadUserRoles();
   }
 
-  Future<void> _loadUserRoles() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _userRoles = prefs.getStringList('roles') ?? [];
-    });
+  bool canEdit({required int docStatus, required List<String> workflowActions}) {
+    if (docStatus != 0) return false;
+    if (workflowActions.isEmpty) return false;
+    return true;
   }
 
-  bool get isPurchaseUser => _userRoles.any((r) => r.toLowerCase().contains('purchase') || r.toLowerCase().contains('sales'));
-  bool get isAccountsManager => _userRoles.any((r) => r.toLowerCase().contains('account') || r.toLowerCase().contains('finance'));
-  bool get isOasisManager => _userRoles.any((r) => r.toLowerCase().contains('oasis') || r.toLowerCase().contains('manager') || r.toLowerCase().contains('md') || r.toLowerCase().contains('stock'));
+  Color workflowStateColor(String state) {
+    switch (state) {
+      case 'Draft':                      return const Color(0xFF6B7280); // grey
+      case 'Pending':                    return const Color(0xFFF59E0B); // amber
+      case 'Verified By Finance Team':   return const Color(0xFF3B82F6); // blue
+      case 'Verified By Accounts Team':  return const Color(0xFF3B82F6); // blue
+      case 'Approved By MD':             return const Color(0xFF16A34A); // green
+      case 'Submitted':                  return const Color(0xFF16A34A); // green
+      case 'Rejected By Finance Team':   return const Color(0xFFDC2626); // red
+      case 'Rejected By MD':             return const Color(0xFFDC2626); // red
+      case 'Cancelled':                  return const Color(0xFF9CA3AF); // light grey
+      default:                           return const Color(0xFF6B7280);
+    }
+  }
 
   Future<void> _fetchDetails() async {
     setState(() => _isLoading = true);
@@ -105,12 +113,14 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
       
       final message = response['message'] ?? response;
       if (response['status'] == 'success' || message['status'] == 'success') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message['message'] ?? 'Action applied successfully!'),
-            backgroundColor: const Color(0xFF10B981),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message['message'] ?? 'Action applied successfully!'),
+              backgroundColor: const Color(0xFF10B981),
+            ),
+          );
+        }
         _fetchDetails();
       } else {
         throw Exception(message['message'] ?? 'Workflow action failed.');
@@ -201,7 +211,7 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
           style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, color: AppColors.textPrimary, fontSize: 16),
         ),
         actions: [
-          if (_purchaseOrder != null && _purchaseOrder!.docstatus == 0) ...[
+          if (_purchaseOrder != null && canEdit(docStatus: _purchaseOrder!.docstatus, workflowActions: _workflowActions))
             IconButton(
               icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
               onPressed: () async {
@@ -216,29 +226,40 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
                 }
               },
             ),
+          if (_purchaseOrder != null && _purchaseOrder!.docstatus == 0)
             IconButton(
               icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
               onPressed: _deleteOrder,
             ),
-          ],
         ],
       ),
       body: _isLoading || _purchaseOrder == null
           ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
           : Stack(
               children: [
-                ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
-                  physics: const BouncingScrollPhysics(),
+                Column(
                   children: [
-                    _buildGlassmorphicHeaderCard(),
-                    const SizedBox(height: 24),
-                    _buildGeneralDetailsCard(),
-                    const SizedBox(height: 24),
-                    _buildItemsCard(),
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.all(20),
+                        physics: const BouncingScrollPhysics(),
+                        children: [
+                          _buildGlassmorphicHeaderCard(),
+                          const SizedBox(height: 24),
+                          _buildGeneralDetailsCard(),
+                          const SizedBox(height: 24),
+                          _buildItemsCard(),
+                        ],
+                      ),
+                    ),
+                    _buildBottomActionTransitions(),
                   ],
                 ),
-                _buildFloatingBottomActions(),
+                if (_isLoading)
+                  Container(
+                    color: Colors.black12,
+                    child: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                  )
               ],
             ),
     );
@@ -246,19 +267,20 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
 
   Widget _buildGlassmorphicHeaderCard() {
     final order = _purchaseOrder!;
+    final badgeColor = workflowStateColor(order.workflowState ?? 'Draft');
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [order.statusColor, order.statusColor.withOpacity(0.8)],
+          colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: order.statusColor.withOpacity(0.3),
+            color: AppColors.primary.withValues(alpha: 0.2),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -273,13 +295,14 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: badgeColor.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: badgeColor.withValues(alpha: 0.6), width: 1.5),
                 ),
                 child: Text(
                   order.workflowState ?? 'Draft',
                   style: GoogleFonts.plusJakartaSans(
-                    color: Colors.white,
+                    color: badgeColor,
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
                   ),
@@ -292,7 +315,7 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
           Text(
             'Grand Total',
             style: GoogleFonts.plusJakartaSans(
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
@@ -305,7 +328,7 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
               Text(
                 '${order.currency} ',
                 style: GoogleFonts.plusJakartaSans(
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -417,7 +440,7 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: AppColors.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(Icons.widgets_outlined, color: AppColors.primary, size: 20),
@@ -449,101 +472,14 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
     );
   }
 
-  Widget _buildFloatingBottomActions() {
-    final state = (_purchaseOrder!.workflowState ?? '').toLowerCase();
-
-    List<Widget> buttons = [];
-
-    // Role checks
-    if (state == 'draft') {
-      if (isPurchaseUser || _userRoles.isEmpty) {
-        buttons.add(
-          _buildActionButton('Submit for Review', AppColors.primary, () => _applyAction('Review')),
-        );
-      }
-    } else if (state == 'pending') {
-      if (isAccountsManager || _userRoles.isEmpty) {
-        buttons.add(
-          _buildActionButton('Verify Order', const Color(0xFF10B981), () => _applyAction('Verified')),
-        );
-        buttons.add(
-          _buildActionButton('Reject Order', AppColors.rejectedMD, () => _applyAction('Reject')),
-        );
-      }
-    } else if (state.contains('verified by finance') || state == 'verified') {
-      if (isOasisManager || _userRoles.isEmpty) {
-        buttons.add(
-          _buildActionButton('Approve Order', const Color(0xFF10B981), () => _applyAction('Approve')),
-        );
-        buttons.add(
-          _buildActionButton('Reject Order', AppColors.rejectedMD, () => _applyAction('Reject')),
-        );
-      }
-    }
-
-    // Default fallbacks in case custom actions are loaded but no matching buttons were generated
-    if (buttons.isEmpty && _workflowActions.isNotEmpty) {
-      for (var action in _workflowActions) {
-        Color btnColor = AppColors.primary;
-        if (action.toLowerCase().contains('reject')) btnColor = AppColors.rejectedMD;
-        if (action.toLowerCase().contains('verify') || action.toLowerCase().contains('approve')) btnColor = const Color(0xFF10B981);
-        
-        buttons.add(
-          _buildActionButton(action, btnColor, () => _applyAction(action)),
-        );
-      }
-    }
-
-    if (buttons.isEmpty) return const SizedBox.shrink();
-
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.92),
-          border: const Border(top: BorderSide(color: AppColors.border)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: buttons.map((btn) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: btn))).toList(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButton(String label, Color color, VoidCallback onTap) {
-    return Container(
-      height: 52,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Center(
-          child: Text(
-            label,
-            style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-          ),
-        ),
-      ),
+  Widget _buildBottomActionTransitions() {
+    final order = _purchaseOrder!;
+    return WorkflowActionBar(
+      workflowActions: _workflowActions,
+      currentState: order.workflowState ?? 'Draft',
+      docStatus: order.docstatus,
+      isLoading: _isLoading,
+      onAction: (action) => _applyAction(action),
     );
   }
 }

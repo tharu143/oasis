@@ -21,6 +21,7 @@ class PurchaseOrderModel {
   final double? netTotal;
   final int docstatus;
   final List<PurchaseOrderItemModel> items;
+  final String? company;
 
   PurchaseOrderModel({
     this.name,
@@ -42,6 +43,7 @@ class PurchaseOrderModel {
     this.netTotal,
     this.docstatus = 0,
     required this.items,
+    this.company,
   });
 
   factory PurchaseOrderModel.fromJson(Map<String, dynamic> json) {
@@ -67,6 +69,7 @@ class PurchaseOrderModel {
       items: (json['items'] as List?)
               ?.map((i) => PurchaseOrderItemModel.fromJson(i))
               .toList() ?? [],
+      company: json['company'],
     );
   }
 
@@ -88,6 +91,7 @@ class PurchaseOrderModel {
       if (customApprovedBy != null) 'custom_approved_by': customApprovedBy,
       'docstatus': docstatus,
       'items': items.map((i) => i.toJson()).toList(),
+      if (company != null) 'company': company,
     };
   }
 

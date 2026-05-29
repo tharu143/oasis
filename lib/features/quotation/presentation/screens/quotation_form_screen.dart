@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -130,6 +131,13 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
         'items': q.items.map((e) => e.toJson()).toList(),
         'custom_project_item': q.customProjectItem.map((x) => x.toJson()).toList(),
         'payment_schedule': q.paymentSchedule.map((x) => x.toJson()).toList(),
+        'total_qty': q.totalQty,
+        'total': q.baseTotal,
+        'base_total': q.baseTotal,
+        'grand_total': q.baseGrandTotal,
+        'rounded_total': q.baseGrandTotal,
+        'rounding_adjustment': 0.0,
+        'total_taxes_and_charges': q.baseGrandTotal - q.baseTotal,
       };
     } else {
       // Setup pristine fresh creation defaults
@@ -428,6 +436,62 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
     setState(() => _isLoading = false);
   }
 
+  void _removeAuditFields(Map<String, dynamic> data) {
+    const auditFields = [
+      'custom_prepared_by', 'custom_prepared_by_name',
+      'custom_verified_by',  'custom_verified_by_name',
+      'custom_approved_by',  'custom_approved_by_name',
+    ];
+    for (final f in auditFields) {
+      data.remove(f);
+    }
+  }
+
+  Map<String, dynamic> _sanitizeForUpdate(Map<String, dynamic> raw) {
+    const List<String> readOnlyFields = [
+      'name',
+      'owner',
+      'creation',
+      'modified',
+      'modified_by',
+      'docstatus',
+      'idx',
+      'workflow_state',
+      'amended_from',
+      'company',
+      'custom_prepared_by',
+      'custom_prepared_by_name',
+      'custom_verified_by',
+      'custom_verified_by_name',
+      'custom_approved_by',
+      'custom_approved_by_name',
+      'custom_prepared_by_role',
+    ];
+    final data = Map<String, dynamic>.from(raw);
+
+    // Strip read-only fields
+    for (final f in readOnlyFields) {
+      data.remove(f);
+    }
+
+    // Strip empty payment_terms_template
+    if ((data['payment_terms_template'] ?? '').toString().isEmpty) {
+      data.remove('payment_terms_template');
+      data['payment_schedule'] = [];
+    }
+
+    // Strip payment_schedule rows without due_date
+    if (data['payment_schedule'] is List) {
+      data['payment_schedule'] = (data['payment_schedule'] as List)
+          .where((row) =>
+              row is Map &&
+              (row['due_date'] ?? '').toString().isNotEmpty)
+          .toList();
+    }
+
+    return data;
+  }
+
   // --- Save / Create Quotation POST Trigger ---
   Future<void> _saveQuotation() async {
     if (!_formKey.currentState!.validate()) {
@@ -456,21 +520,37 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
       }
 
       final bool isEdit = widget.quotation != null;
-      final response = isEdit
-          ? await _apiClient.post(
-              'oasis_mobile.api.quotation.update_quotation',
-              {
-                'name': widget.quotation!.name,
-                'data': _doc,
-              },
-            )
-          : await _apiClient.post(
-              'oasis_mobile.api.quotation.create_quotation',
-              {'data': _doc},
-            );
+      Map<String, dynamic> response;
+      if (isEdit) {
+        final cleanData = _sanitizeForUpdate(_doc);
+        response = await _apiClient.post(
+          'oasis_mobile.api.quotation.update_quotation',
+          {
+            'name': widget.quotation!.name,
+            'data': jsonEncode(cleanData),
+          },
+        );
+      } else {
+        final cleanData = Map<String, dynamic>.from(_doc);
+        _removeAuditFields(cleanData);
+        response = await _apiClient.post(
+          'oasis_mobile.api.quotation.create_quotation',
+          {'data': cleanData},
+        );
+      }
 
-      final status = response['status'] ?? response['message']?['status'];
-      if (status == 'success') {
+      final message = response['message'];
+      bool isSuccess = false;
+      String? errMsg;
+      if (message is Map) {
+        isSuccess = message['status'] == 'success';
+        errMsg = message['message'] ?? message['error'];
+      } else {
+        isSuccess = response['status'] == 'success';
+        errMsg = response['message']?['error'] ?? response['message']?['message'];
+      }
+
+      if (isSuccess) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -484,7 +564,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
           Navigator.pop(context, true);
         }
       } else {
-        throw Exception(response['message']?['error'] ?? 'API response validation failed.');
+        throw Exception(errMsg ?? 'API response validation failed.');
       }
     } catch (e) {
       setState(() => _isLoading = false);
@@ -790,10 +870,89 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
   }
 
   Widget _buildSummaryTab() {
+    final grandTotal = double.tryParse(_doc['grand_total']?.toString() ?? '0') ?? 0.0;
+    final totalQty = (_doc['items'] as List?)
+        ?.fold<double>(0.0, (sum, item) => sum + (double.tryParse((item as Map)['qty']?.toString() ?? '0') ?? 0.0)) ?? 0.0;
+    final itemCount = (_doc['items'] as List?)?.length ?? 0;
+
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       physics: const BouncingScrollPhysics(),
       children: [
+        GlassCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildCardHeader('QUOTATION SUMMARY', Icons.price_check_rounded),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'GRAND TOTAL',
+                        style: GoogleFonts.outfit(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textSecondary,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'QAR ${grandTotal.toStringAsFixed(2)}',
+                        style: GoogleFonts.outfit(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '$itemCount ITEMS',
+                          style: GoogleFonts.outfit(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${totalQty.toStringAsFixed(1)} TOTAL QTY',
+                          style: GoogleFonts.outfit(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
         if (_doc['custom_quote_type'] == 'Project' || _doc['custom_quote_type'] == 'AMC') ...[
           GlassCard(
             child: Column(
@@ -1025,14 +1184,19 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                value ?? 'Pick Date',
-                style: GoogleFonts.outfit(
-                  fontWeight: FontWeight.w600,
-                  color: value != null ? AppColors.textPrimary : AppColors.textLight,
-                  fontSize: 14,
+              Expanded(
+                child: Text(
+                  value ?? 'Pick Date',
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.w600,
+                    color: value != null ? AppColors.textPrimary : AppColors.textLight,
+                    fontSize: 14,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 8),
               const Icon(Icons.calendar_month_rounded, size: 18, color: AppColors.textLight),
             ],
           ),

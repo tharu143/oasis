@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
+import 'package:oasis/core/widgets/workflow_action_bar.dart';
 import '../../models/material_request_model.dart';
 import 'material_request_form_screen.dart';
 
@@ -19,21 +19,32 @@ class _MaterialRequestDetailScreenState extends State<MaterialRequestDetailScree
   final ApiClient _apiClient = ApiClient();
   bool _isLoading = true;
   MaterialRequestModel? _details;
-  List<String> _userRoles = [];
   List<String> _workflowActions = [];
 
   @override
   void initState() {
     super.initState();
-    _loadRolesAndFetchDetails();
+    _fetchDetails();
   }
 
-  Future<void> _loadRolesAndFetchDetails() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _userRoles = prefs.getStringList('roles') ?? [];
-    });
-    await _fetchDetails();
+  bool canEdit({required int docStatus, required List<String> workflowActions}) {
+    if (docStatus != 0) return false;
+    if (workflowActions.isEmpty) return false;
+    return true;
+  }
+
+  Color workflowStateColor(String state) {
+    switch (state) {
+      case 'Draft':                      return const Color(0xFF6B7280); // grey
+      case 'Pending':                    return const Color(0xFFF59E0B); // amber
+      case 'Verified By Finance Team':   return const Color(0xFF3B82F6); // blue
+      case 'Approved By MD':             return const Color(0xFF16A34A); // green
+      case 'Submitted':                  return const Color(0xFF16A34A); // green
+      case 'Rejected By Finance Team':   return const Color(0xFFDC2626); // red
+      case 'Rejected By MD':             return const Color(0xFFDC2626); // red
+      case 'Cancelled':                  return const Color(0xFF9CA3AF); // light grey
+      default:                           return const Color(0xFF6B7280);
+    }
   }
 
   Future<void> _fetchDetails() async {
@@ -200,7 +211,7 @@ class _MaterialRequestDetailScreenState extends State<MaterialRequestDetailScree
         style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, color: AppColors.textPrimary, fontSize: 16),
       ),
       actions: [
-        if (doc.docstatus == 0) ...[
+        if (canEdit(docStatus: doc.docstatus, workflowActions: _workflowActions))
           IconButton(
             icon: const Icon(Icons.edit_rounded, color: AppColors.primary),
             onPressed: () {
@@ -212,11 +223,11 @@ class _MaterialRequestDetailScreenState extends State<MaterialRequestDetailScree
               ).then((_) => _fetchDetails());
             },
           ),
+        if (doc.docstatus == 0)
           IconButton(
             icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
             onPressed: _deleteRequest,
           ),
-        ],
       ],
     );
   }
@@ -257,13 +268,13 @@ class _MaterialRequestDetailScreenState extends State<MaterialRequestDetailScree
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
-                  color: doc.statusColor.withValues(alpha: 0.2),
+                  color: workflowStateColor(doc.workflowState ?? 'Draft').withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: doc.statusColor.withValues(alpha: 0.6), width: 1.5),
+                  border: Border.all(color: workflowStateColor(doc.workflowState ?? 'Draft').withValues(alpha: 0.6), width: 1.5),
                 ),
                 child: Text(
                   doc.workflowState ?? 'Draft',
-                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 12, color: doc.statusColor),
+                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 12, color: workflowStateColor(doc.workflowState ?? 'Draft')),
                 ),
               ),
             ],
@@ -495,57 +506,12 @@ class _MaterialRequestDetailScreenState extends State<MaterialRequestDetailScree
   }
 
   Widget _buildBottomActionTransitions(MaterialRequestModel doc) {
-    if (_workflowActions.isEmpty) return const SizedBox.shrink();
-
-    List<Widget> buttons = [];
-
-    for (var action in _workflowActions) {
-      final actLower = action.toLowerCase();
-      final isReject = actLower.contains('reject') || actLower.contains('cancel');
-      final isSuccess = actLower.contains('approve') || actLower.contains('verify') || actLower.contains('review') || actLower.contains('submit') || actLower.contains('verified');
-      
-      Color bgColor = AppColors.primary;
-      if (isSuccess) bgColor = const Color(0xFF10B981);
-      if (isReject) bgColor = const Color(0xFFEF4444);
-
-      buttons.add(
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            child: ElevatedButton(
-              onPressed: () => _applyWorkflowAction(action),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: bgColor,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                minimumSize: const Size(0, 50),
-                elevation: 0,
-              ),
-              child: Text(
-                action == 'Review'
-                    ? 'Submit for Review'
-                    : action == 'Verified'
-                        ? 'Verify Request'
-                        : action == 'Verify'
-                            ? 'Verify Request'
-                            : action == 'Approve'
-                                ? 'Approve Request'
-                                : '$action Request',
-                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (buttons.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.all(16),
-      child: Row(children: buttons),
+    return WorkflowActionBar(
+      workflowActions: _workflowActions,
+      currentState: doc.workflowState ?? 'Draft',
+      docStatus: doc.docstatus,
+      isLoading: _isLoading,
+      onAction: (action) => _applyWorkflowAction(action),
     );
   }
 }

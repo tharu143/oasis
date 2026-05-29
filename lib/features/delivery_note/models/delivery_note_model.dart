@@ -22,6 +22,7 @@ class DeliveryNoteModel {
   final double? grandTotal;
   final double? netTotal;
   final List<DeliveryNoteItemModel> items;
+  final String? company;
 
   DeliveryNoteModel({
     this.name,
@@ -44,6 +45,7 @@ class DeliveryNoteModel {
     this.grandTotal,
     this.netTotal,
     required this.items,
+    this.company,
   });
 
   factory DeliveryNoteModel.fromJson(Map<String, dynamic> json) {
@@ -70,6 +72,7 @@ class DeliveryNoteModel {
       items: (json['items'] as List?)
               ?.map((i) => DeliveryNoteItemModel.fromJson(i))
               .toList() ?? [],
+      company: json['company'],
     );
   }
 
@@ -91,6 +94,7 @@ class DeliveryNoteModel {
       if (customVerifiedBy != null) 'custom_verified_by': customVerifiedBy,
       if (customApprovedBy != null) 'custom_approved_by': customApprovedBy,
       'items': items.map((i) => i.toJson()).toList(),
+      if (company != null) 'company': company,
     };
   }
 

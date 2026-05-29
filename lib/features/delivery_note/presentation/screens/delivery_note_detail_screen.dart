@@ -4,6 +4,7 @@ import 'package:intl/intl.dart' as intl;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
+import 'package:oasis/core/widgets/workflow_action_bar.dart';
 import 'package:oasis/features/delivery_note/models/delivery_note_model.dart';
 import 'package:oasis/features/sales_invoice/presentation/screens/sales_invoice_form_screen.dart';
 import 'delivery_note_form_screen.dart';
@@ -21,7 +22,6 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
   final ApiClient _apiClient = ApiClient();
   late DeliveryNoteModel _deliveryNote;
   List<String> _workflowActions = [];
-  List<String> _userRoles = [];
   bool _isLoading = false;
 
   @override
@@ -29,18 +29,27 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
     super.initState();
     _deliveryNote = widget.deliveryNote;
     _fetchDetails();
-    _loadUserRoles();
   }
 
-  Future<void> _loadUserRoles() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _userRoles = prefs.getStringList('roles') ?? [];
-    });
+  bool canEdit({required int docStatus, required List<String> workflowActions}) {
+    if (docStatus != 0) return false;
+    if (workflowActions.isEmpty) return false;
+    return true;
   }
 
-  bool get isSalesUser => _userRoles.any((r) => r.toLowerCase().contains('sales') || r.toLowerCase().contains('manager'));
-  bool get isAccountsUser => _userRoles.any((r) => r.toLowerCase().contains('account') || r.toLowerCase().contains('finance'));
+  Color workflowStateColor(String state) {
+    switch (state) {
+      case 'Draft':                      return const Color(0xFF6B7280); // grey
+      case 'Pending':                    return const Color(0xFFF59E0B); // amber
+      case 'Verified By Finance Team':   return const Color(0xFF3B82F6); // blue
+      case 'Approved By MD':             return const Color(0xFF16A34A); // green
+      case 'Submitted':                  return const Color(0xFF16A34A); // green
+      case 'Rejected By Finance Team':   return const Color(0xFFDC2626); // red
+      case 'Rejected By MD':             return const Color(0xFFDC2626); // red
+      case 'Cancelled':                  return const Color(0xFF9CA3AF); // light grey
+      default:                           return const Color(0xFF6B7280);
+    }
+  }
 
   Future<void> _fetchDetails() async {
     setState(() => _isLoading = true);
@@ -238,7 +247,7 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
           style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, color: AppColors.textPrimary, fontSize: 16),
         ),
         actions: [
-          if (_deliveryNote.docstatus == 0) ...[
+          if (canEdit(docStatus: _deliveryNote.docstatus, workflowActions: _workflowActions))
             IconButton(
               icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
               onPressed: () async {
@@ -253,11 +262,11 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
                 }
               },
             ),
+          if (_deliveryNote.docstatus == 0)
             IconButton(
               icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
               onPressed: _deleteNote,
             ),
-          ],
         ],
       ),
       body: _isLoading
@@ -282,19 +291,20 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
   }
 
   Widget _buildGlassmorphicHeaderCard() {
+    final stateColor = workflowStateColor(_deliveryNote.workflowState ?? 'Draft');
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [_deliveryNote.statusColor, _deliveryNote.statusColor.withOpacity(0.8)],
+          colors: [stateColor, stateColor.withOpacity(0.8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: _deliveryNote.statusColor.withOpacity(0.3),
+            color: stateColor.withOpacity(0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -480,67 +490,43 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
   }
 
   Widget _buildFloatingBottomActions() {
-    final state = (_deliveryNote.workflowState ?? '').toLowerCase();
-    List<Widget> buttons = [];
-
-    // docstatus == 1 means fully submitted/approved (workflow complete)
-    final bool isFullyApproved = _deliveryNote.docstatus == 1;
-
-    if (isFullyApproved) {
-      // Workflow complete — always show MAKE SALES INVOICE
-      buttons.add(
-        _buildActionButton(
-          'MAKE SALES INVOICE',
-          const Color(0xFF8B5CF6),
-          _makeSalesInvoice,
+    if (_deliveryNote.docstatus == 1) {
+      return Positioned(
+        bottom: 0,
+        left: 0,
+        right: 0,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 34),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, -5))],
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildActionButton(
+                  'MAKE SALES INVOICE',
+                  const Color(0xFF8B5CF6),
+                  _makeSalesInvoice,
+                ),
+              ),
+            ],
+          ),
         ),
       );
-    } else {
-      // Document still in workflow — show workflow action buttons
-      List<String> actionsToAdd = [];
-      if (_workflowActions.isNotEmpty) {
-        actionsToAdd = List.from(_workflowActions);
-      } else {
-        // Fallback to role-based logic if API returned no workflow actions
-        if (isSalesUser) {
-          if (state == 'draft') actionsToAdd.add('Review');
-          else if (state.contains('pending')) actionsToAdd.add('Verified');
-        }
-        if (isAccountsUser) {
-          if (state.contains('pending')) actionsToAdd.add('Reject');
-        }
-      }
-
-      for (var action in actionsToAdd) {
-        Color btnColor = AppColors.primary;
-        final actLower = action.toLowerCase();
-        if (actLower.contains('reject') || actLower.contains('cancel')) {
-          btnColor = Colors.redAccent;
-        } else if (actLower.contains('verify') || actLower.contains('approve') || actLower == 'verified' || actLower.contains('submit')) {
-          btnColor = const Color(0xFF10B981);
-        } else if (actLower.contains('review')) {
-          btnColor = const Color(0xFF3B82F6);
-        }
-        buttons.add(_buildActionButton(action, btnColor, () => _applyAction(action)));
-      }
     }
-
-    if (buttons.isEmpty) return const SizedBox.shrink();
 
     return Positioned(
       bottom: 0,
       left: 0,
       right: 0,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 34),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, -5))],
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Row(
-          children: buttons.map((btn) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: btn))).toList(),
-        ),
+      child: WorkflowActionBar(
+        workflowActions: _workflowActions,
+        currentState: _deliveryNote.workflowState ?? 'Draft',
+        docStatus: _deliveryNote.docstatus,
+        isLoading: _isLoading,
+        onAction: (action) => _applyAction(action),
       ),
     );
   }

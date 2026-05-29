@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
+import 'package:oasis/core/widgets/workflow_action_bar.dart';
 import '../../models/journal_entry_model.dart';
 import 'journal_entry_form_screen.dart';
 
@@ -19,21 +19,33 @@ class _JournalEntryDetailScreenState extends State<JournalEntryDetailScreen> {
   final ApiClient _apiClient = ApiClient();
   bool _isLoading = true;
   JournalEntryModel? _details;
-  List<String> _userRoles = [];
   List<String> _workflowActions = [];
 
   @override
   void initState() {
     super.initState();
-    _loadRolesAndFetchDetails();
+    _fetchDetails();
   }
 
-  Future<void> _loadRolesAndFetchDetails() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _userRoles = prefs.getStringList('roles') ?? [];
-    });
-    await _fetchDetails();
+  bool canEdit({required int docStatus, required List<String> workflowActions}) {
+    if (docStatus != 0) return false;
+    if (workflowActions.isEmpty) return false;
+    return true;
+  }
+
+  Color workflowStateColor(String state) {
+    switch (state) {
+      case 'Draft':                      return const Color(0xFF6B7280); // grey
+      case 'Pending':                    return const Color(0xFFF59E0B); // amber
+      case 'Verified By Finance Team':   return const Color(0xFF3B82F6); // blue
+      case 'Verified By Accounts Team':  return const Color(0xFF3B82F6); // blue
+      case 'Approved By MD':             return const Color(0xFF16A34A); // green
+      case 'Submitted':                  return const Color(0xFF16A34A); // green
+      case 'Rejected By Finance Team':   return const Color(0xFFDC2626); // red
+      case 'Rejected By MD':             return const Color(0xFFDC2626); // red
+      case 'Cancelled':                  return const Color(0xFF9CA3AF); // light grey
+      default:                           return const Color(0xFF6B7280);
+    }
   }
 
   Future<void> _fetchDetails() async {
@@ -222,7 +234,7 @@ class _JournalEntryDetailScreenState extends State<JournalEntryDetailScreen> {
         style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, color: AppColors.textPrimary, fontSize: 16),
       ),
       actions: [
-        if (doc.docstatus == 0) ...[
+        if (canEdit(docStatus: doc.docstatus, workflowActions: _workflowActions))
           IconButton(
             icon: const Icon(Icons.edit_rounded, color: AppColors.primary),
             onPressed: () {
@@ -234,11 +246,11 @@ class _JournalEntryDetailScreenState extends State<JournalEntryDetailScreen> {
               ).then((_) => _fetchDetails());
             },
           ),
+        if (doc.docstatus == 0)
           IconButton(
             icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
             onPressed: _deleteEntry,
           ),
-        ],
       ],
     );
   }
@@ -279,13 +291,13 @@ class _JournalEntryDetailScreenState extends State<JournalEntryDetailScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
-                  color: doc.statusColor.withValues(alpha: 0.2),
+                  color: workflowStateColor(doc.workflowState ?? 'Draft').withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: doc.statusColor.withValues(alpha: 0.6), width: 1.5),
+                  border: Border.all(color: workflowStateColor(doc.workflowState ?? 'Draft').withValues(alpha: 0.6), width: 1.5),
                 ),
                 child: Text(
                   doc.workflowState ?? 'Draft',
-                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 12, color: doc.statusColor),
+                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 12, color: workflowStateColor(doc.workflowState ?? 'Draft')),
                 ),
               ),
             ],
@@ -601,93 +613,12 @@ class _JournalEntryDetailScreenState extends State<JournalEntryDetailScreen> {
   }
 
   Widget _buildBottomActionTransitions(JournalEntryModel doc) {
-    if (_workflowActions.isEmpty) return const SizedBox.shrink();
-
-    final state = (doc.workflowState ?? 'Draft').toLowerCase();
-
-    bool isCreator = false;
-    bool isAccountant = false;
-    bool isOasisManager = false;
-
-    for (var r in _userRoles) {
-      final lr = r.toLowerCase();
-      if (lr.contains('purchase') || lr.contains('sales') || lr.contains('stock') || lr.contains('desk')) {
-        isCreator = true;
-      }
-      if (lr.contains('account') || lr.contains('finance')) {
-        isAccountant = true;
-      }
-      if (lr.contains('manager') || lr.contains('md') || lr.contains('oasis')) {
-        isOasisManager = true;
-      }
-    }
-
-    List<Widget> buttons = [];
-
-    for (var action in _workflowActions) {
-      bool show = false;
-
-      if (state == 'draft' && isCreator) {
-        if (action == 'Review') {
-          show = true;
-        }
-      }
-      if (state == 'pending') {
-        if (isAccountant && (action == 'Verified' || action == 'Reject')) {
-          show = true;
-        }
-      }
-      if (state.contains('verified by finance') && isOasisManager) {
-        if (action == 'Approve' || action == 'Reject') {
-          show = true;
-        }
-      }
-      if (state.contains('approved by md') && isOasisManager) {
-        if (action == 'Cancel') {
-          show = true;
-        }
-      }
-
-      if (show) {
-        final isReject = action == 'Reject';
-        final isCancel = action == 'Cancel';
-
-        buttons.add(
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: ElevatedButton(
-                onPressed: () => _applyWorkflowAction(action),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isReject || isCancel ? AppColors.rejectedMD : AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  elevation: 0,
-                ),
-                child: Text(
-                  action == 'Review'
-                      ? 'Submit for Review'
-                      : action == 'Verified'
-                          ? 'Verify Entry'
-                          : action == 'Approve'
-                              ? 'Approve Entry'
-                              : '$action Entry',
-                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-              ),
-            ),
-          ),
-        );
-      }
-    }
-
-    if (buttons.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.all(16),
-      child: Row(children: buttons),
+    return WorkflowActionBar(
+      workflowActions: _workflowActions,
+      currentState: doc.workflowState ?? 'Draft',
+      docStatus: doc.docstatus,
+      isLoading: _isLoading,
+      onAction: (action) => _applyWorkflowAction(action),
     );
   }
 }

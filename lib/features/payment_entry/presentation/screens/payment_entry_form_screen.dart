@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -204,6 +205,47 @@ class _PaymentEntryFormScreenState extends State<PaymentEntryFormScreen> with Si
 
   bool get _isFormValid => _isTab1Valid && _isTab2Valid && _isTab3Valid && _isTab5Valid;
 
+  void _removeAuditFields(Map<String, dynamic> data) {
+    const auditFields = [
+      'custom_prepared_by', 'custom_prepared_by_name',
+      'custom_verified_by',  'custom_verified_by_name',
+      'custom_approved_by',  'custom_approved_by_name',
+    ];
+    for (final f in auditFields) {
+      data.remove(f);
+    }
+  }
+
+  Map<String, dynamic> _sanitizeForUpdate(Map<String, dynamic> raw) {
+    const List<String> readOnlyFields = [
+      'name',
+      'owner',
+      'creation',
+      'modified',
+      'modified_by',
+      'docstatus',
+      'idx',
+      'workflow_state',
+      'amended_from',
+      'company',
+      'custom_prepared_by',
+      'custom_prepared_by_name',
+      'custom_verified_by',
+      'custom_verified_by_name',
+      'custom_approved_by',
+      'custom_approved_by_name',
+      'custom_prepared_by_role',
+    ];
+    final data = Map<String, dynamic>.from(raw);
+
+    // Strip read-only fields
+    for (final f in readOnlyFields) {
+      data.remove(f);
+    }
+
+    return data;
+  }
+
   Future<void> _submitForm() async {
     if (!_isFormValid) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -236,36 +278,69 @@ class _PaymentEntryFormScreenState extends State<PaymentEntryFormScreen> with Si
         references: _references,
       );
 
-      final Map<String, dynamic> docData = model.toJson();
-
-      if (widget.paymentEntry == null) {
-        // Create
-        await _apiClient.post('oasis_mobile.api.payment_entry.create_payment_entry', {
-          'data': docData,
-        });
+      final isEdit = widget.paymentEntry != null;
+      Map<String, dynamic> response;
+      if (isEdit) {
+        final cleanData = _sanitizeForUpdate(model.toJson());
+        response = await _apiClient.post(
+          'oasis_mobile.api.payment_entry.update_payment_entry',
+          {
+            'name': widget.paymentEntry!.name,
+            'data': jsonEncode(cleanData),
+          },
+        );
       } else {
-        // Update
-        await _apiClient.post('oasis_mobile.api.payment_entry.update_payment_entry', {
-          'name': widget.paymentEntry!.name,
-          'data': docData,
-        });
+        final cleanData = Map<String, dynamic>.from(model.toJson());
+        _removeAuditFields(cleanData);
+        response = await _apiClient.post(
+          'oasis_mobile.api.payment_entry.create_payment_entry',
+          {'data': cleanData},
+        );
+      }
+
+      final message = response['message'];
+      bool isSuccess = false;
+      String? errMsg;
+      if (message is Map) {
+        isSuccess = message['status'] == 'success';
+        errMsg = message['message'] ?? message['error'];
+      } else {
+        isSuccess = response['status'] == 'success' || response['message'] == 'success';
+        errMsg = response['message']?['error'] ?? response['message']?['message'] ?? response['message']?.toString();
       }
 
       setState(() => _isSaving = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.paymentEntry == null ? 'Payment entry created successfully' : 'Payment entry updated successfully'),
-            backgroundColor: AppColors.approvedMD,
-          ),
-        );
-        Navigator.pop(context, true);
+
+      if (isSuccess) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(isEdit ? 'Payment entry updated successfully' : 'Payment entry created successfully'),
+              backgroundColor: AppColors.approvedMD,
+            ),
+          );
+          Navigator.pop(context, true);
+        }
+      } else {
+        throw Exception(errMsg ?? 'API response validation failed.');
       }
     } catch (e) {
       setState(() => _isSaving = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save payment entry: $e'), backgroundColor: AppColors.rejectedMD),
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: const BorderSide(color: AppColors.border)),
+            title: Text('Submission Error', style: GoogleFonts.plusJakartaSans(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+            content: Text(e.toString().replaceAll('Exception: ', ''), style: GoogleFonts.plusJakartaSans(color: AppColors.textSecondary)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('OK', style: GoogleFonts.plusJakartaSans(color: AppColors.primary, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
         );
       }
     }

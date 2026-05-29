@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -77,7 +78,7 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
         'items': dn.items.map((e) => e.toJson()).toList(),
         'payment_terms_template': '',
         'payment_schedule': <Map<String, dynamic>>[],
-        'company': 'Oasis Trading and Importing HVAC',
+        'company': dn.company ?? 'Oasis Trading and Importing HVAC',
         'total_qty': dn.items.fold<double>(0, (sum, item) => sum + item.qty),
       };
     } else if (widget.initialData != null) {
@@ -289,6 +290,62 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
     setState(() => _isLoading = false);
   }
 
+  void _removeAuditFields(Map<String, dynamic> data) {
+    const auditFields = [
+      'custom_prepared_by', 'custom_prepared_by_name',
+      'custom_verified_by',  'custom_verified_by_name',
+      'custom_approved_by',  'custom_approved_by_name',
+    ];
+    for (final f in auditFields) {
+      data.remove(f);
+    }
+  }
+
+  Map<String, dynamic> _sanitizeForUpdate(Map<String, dynamic> raw) {
+    const List<String> readOnlyFields = [
+      'name',
+      'owner',
+      'creation',
+      'modified',
+      'modified_by',
+      'docstatus',
+      'idx',
+      'workflow_state',
+      'amended_from',
+      'company',
+      'custom_prepared_by',
+      'custom_prepared_by_name',
+      'custom_verified_by',
+      'custom_verified_by_name',
+      'custom_approved_by',
+      'custom_approved_by_name',
+      'custom_prepared_by_role',
+    ];
+    final data = Map<String, dynamic>.from(raw);
+
+    // Strip read-only fields
+    for (final f in readOnlyFields) {
+      data.remove(f);
+    }
+
+    // Strip empty payment_terms_template
+    if ((data['payment_terms_template'] ?? '').toString().isEmpty) {
+      data.remove('payment_terms_template');
+      data['payment_schedule'] = [];
+    }
+
+    // Strip payment_schedule rows without due_date
+    if (data['payment_schedule'] is List) {
+      data['payment_schedule'] = (data['payment_schedule'] as List)
+          .where((row) =>
+              row is Map &&
+              (row['due_date'] ?? '').toString().isNotEmpty)
+          .toList();
+    }
+
+    return data;
+  }
+
   // --- Save / POST Delivery Note ---
   Future<void> _saveDeliveryNote() async {
     if (!_formKey.currentState!.validate()) {
@@ -314,21 +371,37 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
     setState(() => _isLoading = true);
     try {
       final isEdit = widget.deliveryNote != null;
-      final response = isEdit
-          ? await _apiClient.post(
-              'oasis_mobile.api.delivery_note.update_delivery_note',
-              {
-                'name': widget.deliveryNote!.name,
-                'data': _doc,
-              },
-            )
-          : await _apiClient.post(
-              'oasis_mobile.api.delivery_note.create_delivery_note',
-              {'data': _doc},
-            );
+      Map<String, dynamic> response;
+      if (isEdit) {
+        final cleanData = _sanitizeForUpdate(_doc);
+        response = await _apiClient.post(
+          'oasis_mobile.api.delivery_note.update_delivery_note',
+          {
+            'name': widget.deliveryNote!.name,
+            'data': jsonEncode(cleanData),
+          },
+        );
+      } else {
+        final cleanData = Map<String, dynamic>.from(_doc);
+        _removeAuditFields(cleanData);
+        response = await _apiClient.post(
+          'oasis_mobile.api.delivery_note.create_delivery_note',
+          {'data': cleanData},
+        );
+      }
 
-      final status = response['status'] ?? response['message']?['status'];
-      if (status == 'success' || response['message'] == 'success') {
+      final message = response['message'];
+      bool isSuccess = false;
+      String? errMsg;
+      if (message is Map) {
+        isSuccess = message['status'] == 'success';
+        errMsg = message['message'] ?? message['error'];
+      } else {
+        isSuccess = response['status'] == 'success' || response['message'] == 'success';
+        errMsg = response['message']?['error'] ?? response['message']?['message'] ?? response['message']?.toString();
+      }
+
+      if (isSuccess) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -339,7 +412,7 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
           Navigator.pop(context, true);
         }
       } else {
-        throw Exception(response['message']?['error'] ?? 'API response validation failed.');
+        throw Exception(errMsg ?? 'API response validation failed.');
       }
     } catch (e) {
       setState(() => _isLoading = false);
@@ -1253,7 +1326,15 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(value, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: AppColors.textPrimary, fontSize: 14)),
+              Expanded(
+                child: Text(
+                  value,
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: AppColors.textPrimary, fontSize: 14),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
               const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.textLight),
             ],
           ),
@@ -1302,7 +1383,15 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(value, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: AppColors.textPrimary, fontSize: 14)),
+              Expanded(
+                child: Text(
+                  value,
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: AppColors.textPrimary, fontSize: 14),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
               const Icon(Icons.access_time_rounded, size: 16, color: AppColors.textLight),
             ],
           ),
