@@ -331,7 +331,7 @@ class _SalesInvoiceDetailScreenState extends State<SalesInvoiceDetailScreen> {
           style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, color: AppColors.textPrimary, fontSize: 16),
         ),
         actions: [
-          if ((_salesInvoice.workflowState ?? '').toLowerCase() == 'draft' || _salesInvoice.docstatus == 0) ...[
+          if (_salesInvoice.docstatus == 0) ...[
             IconButton(
               icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
               onPressed: () async {

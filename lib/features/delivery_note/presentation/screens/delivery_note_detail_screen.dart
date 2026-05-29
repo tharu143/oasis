@@ -238,7 +238,7 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
           style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, color: AppColors.textPrimary, fontSize: 16),
         ),
         actions: [
-          if ((_deliveryNote.workflowState ?? '').toLowerCase() == 'draft') ...[
+          if (_deliveryNote.docstatus == 0) ...[
             IconButton(
               icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
               onPressed: () async {

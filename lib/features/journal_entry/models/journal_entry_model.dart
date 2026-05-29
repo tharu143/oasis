@@ -29,6 +29,7 @@ class JournalEntryModel {
   final String? customVerifiedByName;
   final String? customApprovedBy;
   final String? customApprovedByName;
+  final int docstatus;
   final List<JournalEntryAccountModel> accounts;
 
   JournalEntryModel({
@@ -50,6 +51,7 @@ class JournalEntryModel {
     this.customVerifiedByName,
     this.customApprovedBy,
     this.customApprovedByName,
+    this.docstatus = 0,
     required this.accounts,
   });
 
@@ -73,6 +75,7 @@ class JournalEntryModel {
       customVerifiedByName: json['custom_verified_by_name'],
       customApprovedBy: json['custom_approved_by'] ?? json['custom_approved_by_name'] ?? '',
       customApprovedByName: json['custom_approved_by_name'],
+      docstatus: json['docstatus'] is int ? json['docstatus'] : (json['docstatus'] != null ? int.tryParse(json['docstatus'].toString()) ?? 0 : 0),
       accounts: (json['accounts'] as List?)
               ?.map((a) => JournalEntryAccountModel.fromJson(a))
               .toList() ?? [],
@@ -95,6 +98,7 @@ class JournalEntryModel {
       if (customVerifiedByName != null) 'custom_verified_by_name': customVerifiedByName,
       if (customApprovedBy != null) 'custom_approved_by': customApprovedBy,
       if (customApprovedByName != null) 'custom_approved_by_name': customApprovedByName,
+      'docstatus': docstatus,
       'accounts': accounts.map((a) => a.toJson()).toList(),
     };
   }

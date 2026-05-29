@@ -43,6 +43,7 @@ class PaymentEntryModel {
   final String? customVerifiedByName;
   final String? customApprovedBy;
   final String? customApprovedByName;
+  final int docstatus;
   final List<PaymentEntryReferenceModel> references;
 
   PaymentEntryModel({
@@ -69,6 +70,7 @@ class PaymentEntryModel {
     this.customVerifiedByName,
     this.customApprovedBy,
     this.customApprovedByName,
+    this.docstatus = 0,
     required this.references,
   });
 
@@ -97,6 +99,7 @@ class PaymentEntryModel {
       customVerifiedByName: json['custom_verified_by_name'],
       customApprovedBy: json['custom_approved_by'],
       customApprovedByName: json['custom_approved_by_name'],
+      docstatus: json['docstatus'] is int ? json['docstatus'] : (json['docstatus'] != null ? int.tryParse(json['docstatus'].toString()) ?? 0 : 0),
       references: (json['references'] as List?)
               ?.map((r) => PaymentEntryReferenceModel.fromJson(r))
               .toList() ?? [],
@@ -121,6 +124,7 @@ class PaymentEntryModel {
       'reference_date': referenceDate,
       'remarks': remarks,
       'custom_remarks': customRemarks,
+      'docstatus': docstatus,
       'references': references.map((r) => r.toJson()).toList(),
     };
   }

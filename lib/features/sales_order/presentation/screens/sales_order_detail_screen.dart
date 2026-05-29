@@ -4,6 +4,7 @@ import 'package:intl/intl.dart' as intl;
 import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
 import 'package:oasis/features/sales_order/models/sales_order_model.dart';
+import 'package:oasis/features/sales_order/presentation/screens/sales_order_form_screen.dart';
 import 'package:oasis/features/material_request/presentation/screens/material_request_form_screen.dart';
 import 'package:oasis/features/delivery_note/presentation/screens/delivery_note_form_screen.dart';
 
@@ -234,6 +235,21 @@ class _SalesOrderDetailScreenState extends State<SalesOrderDetailScreen> {
         ),
       ),
       actions: [
+        if (_salesOrder.docstatus == 0)
+          IconButton(
+            icon: const Icon(Icons.edit, color: Colors.white, size: 22),
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SalesOrderFormScreen(salesOrder: _salesOrder),
+                ),
+              );
+              if (result == true) {
+                _fetchDetails();
+              }
+            },
+          ),
         IconButton(icon: const Icon(Icons.refresh, color: Colors.white, size: 22), onPressed: _fetchDetails),
         const SizedBox(width: 8),
       ],

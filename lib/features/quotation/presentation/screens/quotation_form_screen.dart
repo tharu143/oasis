@@ -455,11 +455,19 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
         _doc['custom_completion_period_arabic'] = '';
       }
 
-      // ERPNext expects integer formats for checks and dropdown matches
-      final response = await _apiClient.post(
-        'oasis_mobile.api.quotation.create_quotation',
-        {'data': _doc},
-      );
+      final bool isEdit = widget.quotation != null;
+      final response = isEdit
+          ? await _apiClient.post(
+              'oasis_mobile.api.quotation.update_quotation',
+              {
+                'name': widget.quotation!.name,
+                'data': _doc,
+              },
+            )
+          : await _apiClient.post(
+              'oasis_mobile.api.quotation.create_quotation',
+              {'data': _doc},
+            );
 
       final status = response['status'] ?? response['message']?['status'];
       if (status == 'success') {
@@ -467,7 +475,10 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               backgroundColor: AppColors.approvedMD,
-              content: Text('Quotation created successfully!', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
+              content: Text(
+                isEdit ? 'Quotation updated successfully!' : 'Quotation created successfully!',
+                style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
             ),
           );
           Navigator.pop(context, true);

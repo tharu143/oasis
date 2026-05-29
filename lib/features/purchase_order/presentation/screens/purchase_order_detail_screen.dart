@@ -201,7 +201,7 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
           style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, color: AppColors.textPrimary, fontSize: 16),
         ),
         actions: [
-          if (_purchaseOrder != null && (_purchaseOrder!.workflowState ?? '').toLowerCase() == 'draft') ...[
+          if (_purchaseOrder != null && _purchaseOrder!.docstatus == 0) ...[
             IconButton(
               icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
               onPressed: () async {

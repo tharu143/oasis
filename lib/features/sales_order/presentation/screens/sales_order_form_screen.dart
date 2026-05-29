@@ -401,14 +401,18 @@ class _SalesOrderFormScreenState extends State<SalesOrderFormScreen> with Ticker
     setState(() => _isLoading = true);
     try {
       final isEdit = widget.salesOrder != null;
-      final endpoint = isEdit 
-          ? 'oasis_mobile.api.sales_order.update_sales_order'
-          : 'oasis_mobile.api.sales_order.create_sales_order';
-
-      final response = await _apiClient.post(
-        endpoint,
-        {'data': _doc},
-      );
+      final response = isEdit
+          ? await _apiClient.post(
+              'oasis_mobile.api.sales_order.update_sales_order',
+              {
+                'name': widget.salesOrder!.name,
+                'data': _doc,
+              },
+            )
+          : await _apiClient.post(
+              'oasis_mobile.api.sales_order.create_sales_order',
+              {'data': _doc},
+            );
 
       final status = response['status'] ?? response['message']?['status'];
       if (status == 'success') {

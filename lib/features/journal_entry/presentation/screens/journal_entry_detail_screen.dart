@@ -209,8 +209,6 @@ class _JournalEntryDetailScreenState extends State<JournalEntryDetailScreen> {
   }
 
   PreferredSizeWidget _buildAppBar(JournalEntryModel doc) {
-    final state = (doc.workflowState ?? 'Draft').toLowerCase();
-
     return AppBar(
       backgroundColor: const Color(0xFFF8FAFC),
       elevation: 0,
@@ -224,7 +222,7 @@ class _JournalEntryDetailScreenState extends State<JournalEntryDetailScreen> {
         style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, color: AppColors.textPrimary, fontSize: 16),
       ),
       actions: [
-        if (state == 'draft') ...[
+        if (doc.docstatus == 0) ...[
           IconButton(
             icon: const Icon(Icons.edit_rounded, color: AppColors.primary),
             onPressed: () {

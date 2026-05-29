@@ -17,6 +17,7 @@ class MaterialRequestModel {
   final String? customCheckedByName;
   final String? customApprovedBy;
   final String? customApprovedByName;
+  final int docstatus;
   final List<MaterialRequestItemModel> items;
 
   MaterialRequestModel({
@@ -35,6 +36,7 @@ class MaterialRequestModel {
     this.customCheckedByName,
     this.customApprovedBy,
     this.customApprovedByName,
+    this.docstatus = 0,
     required this.items,
   });
 
@@ -55,6 +57,7 @@ class MaterialRequestModel {
       customCheckedByName: json['custom_checked_by_name'],
       customApprovedBy: json['custom_approved_by'] ?? json['custom_approved_by_name'] ?? '',
       customApprovedByName: json['custom_approved_by_name'],
+      docstatus: json['docstatus'] is int ? json['docstatus'] : (json['docstatus'] != null ? int.tryParse(json['docstatus'].toString()) ?? 0 : 0),
       items: (json['items'] as List?)
               ?.map((i) => MaterialRequestItemModel.fromJson(i))
               .toList() ?? [],
@@ -77,6 +80,7 @@ class MaterialRequestModel {
       if (customCheckedByName != null) 'custom_checked_by_name': customCheckedByName,
       if (customApprovedBy != null) 'custom_approved_by': customApprovedBy,
       if (customApprovedByName != null) 'custom_approved_by_name': customApprovedByName,
+      'docstatus': docstatus,
       'items': items.map((i) => i.toJson()).toList(),
     };
   }

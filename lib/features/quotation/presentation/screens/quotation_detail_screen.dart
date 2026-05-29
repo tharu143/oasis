@@ -4,6 +4,7 @@ import 'package:intl/intl.dart' as intl;
 import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
 import 'package:oasis/features/quotation/models/quotation_model.dart';
+import 'package:oasis/features/quotation/presentation/screens/quotation_form_screen.dart';
 import 'package:oasis/features/sales_order/presentation/screens/sales_order_form_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -291,6 +292,22 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
         ),
       ),
       actions: [
+        if (_quotation.docstatus == 0)
+          IconButton(
+            icon: const Icon(Icons.edit, color: Colors.white, size: 22),
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => QuotationFormScreen(quotation: _quotation),
+                ),
+              );
+              if (result == true) {
+                _fetchDetails();
+                _fetchHistory();
+              }
+            },
+          ),
         IconButton(icon: const Icon(Icons.refresh, color: Colors.white, size: 22), onPressed: _fetchDetails),
         const SizedBox(width: 8),
       ],
@@ -545,9 +562,19 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
       child: ExpansionTile(
         shape: const RoundedRectangleBorder(side: BorderSide.none),
         title: Text(item.itemCode, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold)),
-        subtitle: Text(item.itemName, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AppColors.textSecondary)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(item.itemName, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AppColors.textSecondary)),
+            const SizedBox(height: 4),
+            Text(
+              '${item.qty.toInt()} ${item.uom} x ${_quotation.currency} ${intl.NumberFormat("#,##0.00").format(item.rate)}',
+              style: GoogleFonts.plusJakartaSans(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
         trailing: Text(
-          '${item.qty.toInt()} ${item.uom}',
+          '${_quotation.currency} ${intl.NumberFormat("#,##0.00").format(item.amount)}',
           style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: AppColors.primary),
         ),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),

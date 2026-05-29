@@ -19,6 +19,7 @@ class PurchaseOrderModel {
   final String? customApprovedBy;
   final double? grandTotal;
   final double? netTotal;
+  final int docstatus;
   final List<PurchaseOrderItemModel> items;
 
   PurchaseOrderModel({
@@ -39,6 +40,7 @@ class PurchaseOrderModel {
     this.customApprovedBy,
     this.grandTotal,
     this.netTotal,
+    this.docstatus = 0,
     required this.items,
   });
 
@@ -61,6 +63,7 @@ class PurchaseOrderModel {
       customApprovedBy: json['custom_approved_by'] ?? json['custom_approved_by_name'] ?? '',
       grandTotal: (json['grand_total'] ?? json['base_grand_total'] ?? 0.0).toDouble(),
       netTotal: (json['net_total'] ?? json['base_total'] ?? 0.0).toDouble(),
+      docstatus: json['docstatus'] is int ? json['docstatus'] : (json['docstatus'] != null ? int.tryParse(json['docstatus'].toString()) ?? 0 : 0),
       items: (json['items'] as List?)
               ?.map((i) => PurchaseOrderItemModel.fromJson(i))
               .toList() ?? [],
@@ -83,6 +86,7 @@ class PurchaseOrderModel {
       if (customPreparedBy != null) 'custom_prepared_by': customPreparedBy,
       if (customVerifiedBy != null) 'custom_verified_by': customVerifiedBy,
       if (customApprovedBy != null) 'custom_approved_by': customApprovedBy,
+      'docstatus': docstatus,
       'items': items.map((i) => i.toJson()).toList(),
     };
   }

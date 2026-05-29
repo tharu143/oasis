@@ -286,14 +286,18 @@ class _PurchaseOrderFormScreenState extends State<PurchaseOrderFormScreen> with 
     setState(() => _isLoading = true);
     try {
       final isEdit = widget.purchaseOrder != null;
-      final endpoint = isEdit 
-          ? 'oasis_mobile.api.purchase_order.update_purchase_order'
-          : 'oasis_mobile.api.purchase_order.create_purchase_order';
-
-      final response = await _apiClient.post(
-        endpoint,
-        {'data': _doc},
-      );
+      final response = isEdit
+          ? await _apiClient.post(
+              'oasis_mobile.api.purchase_order.update_purchase_order',
+              {
+                'name': widget.purchaseOrder!.name,
+                'data': _doc,
+              },
+            )
+          : await _apiClient.post(
+              'oasis_mobile.api.purchase_order.create_purchase_order',
+              {'data': _doc},
+            );
 
       final status = response['status'] ?? response['message']?['status'];
       if (status == 'success' || response['message'] == 'success') {

@@ -314,14 +314,18 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
     setState(() => _isLoading = true);
     try {
       final isEdit = widget.deliveryNote != null;
-      final endpoint = isEdit 
-          ? 'oasis_mobile.api.delivery_note.update_delivery_note'
-          : 'oasis_mobile.api.delivery_note.create_delivery_note';
-
-      final response = await _apiClient.post(
-        endpoint,
-        {'data': _doc},
-      );
+      final response = isEdit
+          ? await _apiClient.post(
+              'oasis_mobile.api.delivery_note.update_delivery_note',
+              {
+                'name': widget.deliveryNote!.name,
+                'data': _doc,
+              },
+            )
+          : await _apiClient.post(
+              'oasis_mobile.api.delivery_note.create_delivery_note',
+              {'data': _doc},
+            );
 
       final status = response['status'] ?? response['message']?['status'];
       if (status == 'success' || response['message'] == 'success') {

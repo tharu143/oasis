@@ -347,70 +347,70 @@ class _PurchaseOrderDashboardScreenState extends State<PurchaseOrderDashboardScr
     final int actionCount = _dashboardData['action_required'] ?? 0;
     if (actionCount == 0) return const SizedBox.shrink();
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFFF7ED), Color(0xFFFFEDD5)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const PurchaseOrderListScreen(filterStatus: 'Pending'),
+          ),
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFFF7ED), Color(0xFFFFEDD5)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          border: Border.all(color: const Color(0xFFFFD8A8), width: 1),
         ),
-        border: Border.all(color: const Color(0xFFFFD8A8), width: 1),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.orange,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.orange.withOpacity(0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                )
-              ],
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.orange.withOpacity(0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  )
+                ],
+              ),
+              child: const Icon(Icons.notifications_active_outlined, color: Colors.white, size: 24),
             ),
-            child: const Icon(Icons.notifications_active_outlined, color: Colors.white, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Action Required',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFFC2410C),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Action Required',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFFC2410C),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'You have $actionCount orders pending verification',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFFEA580C).withOpacity(0.8),
+                  const SizedBox(height: 2),
+                  Text(
+                    'You have $actionCount orders pending verification',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFFEA580C).withOpacity(0.8),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PurchaseOrderListScreen(filterStatus: 'Pending'),
-                ),
-              );
-            },
-            child: Container(
+            Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.5),
@@ -418,8 +418,8 @@ class _PurchaseOrderDashboardScreenState extends State<PurchaseOrderDashboardScr
               ),
               child: const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFFEA580C), size: 14),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

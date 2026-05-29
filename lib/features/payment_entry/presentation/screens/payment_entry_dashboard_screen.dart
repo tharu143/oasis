@@ -182,72 +182,78 @@ class _PaymentEntryDashboardScreenState extends State<PaymentEntryDashboardScree
     final int actionRequired = _dashboardData['action_required'] ?? 0;
     if (actionRequired == 0) return const SizedBox.shrink();
 
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFEFF6FF), Color(0xFFDBEAFE)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const PaymentEntryListScreen(initialState: 'Pending'),
+          ),
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFEFF6FF), Color(0xFFDBEAFE)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.blue.withValues(alpha: 0.1),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            )
+          ],
         ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withValues(alpha: 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          )
-        ],
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.blue.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.payments_rounded, color: AppColors.accent, size: 24),
             ),
-            child: const Icon(Icons.payments_rounded, color: AppColors.accent, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Action Required',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                    color: Colors.blue[900],
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Action Required',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      color: Colors.blue[900],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'You have $actionRequired payments waiting for verification or approval.',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 13,
-                    color: Colors.blue[850],
+                  const SizedBox(height: 4),
+                  Text(
+                    'You have $actionRequired payments waiting for verification or approval.',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 13,
+                      color: Colors.blue[850],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.arrow_forward_ios_rounded, size: 18),
-            color: Colors.blue[900],
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const PaymentEntryListScreen(initialState: 'Pending'),
-                ),
-              );
-            },
-          )
-        ],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 18,
+                color: Colors.blue[900],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
