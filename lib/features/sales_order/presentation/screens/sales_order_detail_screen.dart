@@ -511,11 +511,29 @@ class _SalesOrderDetailScreenState extends State<SalesOrderDetailScreen> {
       setState(() => _isLoading = false);
       if (response['message'] != null) {
         if (mounted) {
+          final mappedData = Map<String, dynamic>.from(response['message']);
+          final itemsList = mappedData['items'] as List?;
+          if (itemsList == null || itemsList.isEmpty) {
+            mappedData['items'] = _salesOrder.items.map((soItem) {
+              return {
+                'item_code': soItem.itemCode,
+                'item_name': soItem.itemName ?? soItem.itemCode,
+                'qty': soItem.qty,
+                'uom': soItem.uom,
+                'rate': soItem.rate,
+                'amount': soItem.amount ?? (soItem.qty * soItem.rate),
+                'conversion_factor': 1.0,
+                'stock_uom': soItem.uom,
+                'stock_qty': soItem.qty,
+              };
+            }).toList();
+          }
+
           final result = await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => MaterialRequestFormScreen(
-                initialData: Map<String, dynamic>.from(response['message']),
+                initialData: mappedData,
               ),
             ),
           );
@@ -546,11 +564,37 @@ class _SalesOrderDetailScreenState extends State<SalesOrderDetailScreen> {
       setState(() => _isLoading = false);
       if (response['message'] != null) {
         if (mounted) {
+          final mappedData = Map<String, dynamic>.from(response['message']);
+          final itemsList = mappedData['items'] as List?;
+          if (itemsList == null || itemsList.isEmpty) {
+            mappedData['items'] = _salesOrder.items.map((soItem) {
+              return {
+                'item_code': soItem.itemCode,
+                'item_name': soItem.itemName ?? soItem.itemCode,
+                'qty': soItem.qty,
+                'rate': soItem.rate,
+                'amount': soItem.amount ?? (soItem.qty * soItem.rate),
+                'price_list_rate': soItem.rate,
+                'base_price_list_rate': soItem.rate,
+                'base_rate': soItem.rate,
+                'base_amount': soItem.amount ?? (soItem.qty * soItem.rate),
+                'discount_percentage': 0.0,
+                'discount_amount': 0.0,
+                'net_rate': soItem.rate,
+                'net_amount': soItem.amount ?? (soItem.qty * soItem.rate),
+                'stock_qty': soItem.qty,
+                'conversion_factor': 1.0,
+                'uom': soItem.uom,
+                'stock_uom': soItem.uom,
+              };
+            }).toList();
+          }
+
           final result = await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => DeliveryNoteFormScreen(
-                initialData: Map<String, dynamic>.from(response['message']),
+                initialData: mappedData,
               ),
             ),
           );

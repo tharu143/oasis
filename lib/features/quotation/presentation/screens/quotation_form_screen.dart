@@ -29,6 +29,12 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
   late TextEditingController _contactMobileController;
   late TextEditingController _contactEmailController;
   
+  // Address & Arabic Contact Controllers
+  late TextEditingController _addressDisplayController;
+  late TextEditingController _addressArabicController;
+  late TextEditingController _contactNameArabicController;
+  late TextEditingController _contactMobileArabicController;
+  
   // Project-specific Controllers
   late TextEditingController _subjectController;
   late TextEditingController _refController;
@@ -96,14 +102,19 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
         'party_name': q.partyName,
         'customer_name': q.customerName,
         'custom_customer_name_in_arabic': q.customCustomerNameInArabic,
+        'customer_address': q.customerAddress,
+        'address_display': q.addressDisplay,
+        'custom_address_arabic': q.customAddressArabic,
         'currency': q.currency.isNotEmpty ? q.currency : 'QAR',
         'selling_price_list': q.sellingPriceList.isNotEmpty ? q.sellingPriceList : 'Standard Selling',
         'disable_rounded_total': q.disableRoundedTotal,
         'payment_terms_template': q.paymentTermsTemplate,
-        'contact_person': '',
-        'contact_display': q.customContactNameArabic,
-        'contact_mobile': q.customContactMobileNoArabic,
-        'contact_email': '', 
+        'contact_person': q.contactPerson,
+        'contact_display': q.contactDisplay,
+        'contact_mobile': q.contactMobile,
+        'contact_email': q.contactEmail,
+        'custom_contact_name_arabic': q.customContactNameArabic,
+        'custom_contact_mobile_no_arabic': q.customContactMobileNoArabic,
         'custom_quote_type': q.customQuoteType.isNotEmpty ? q.customQuoteType : 'Retail',
         'custom_retail_quote_type': q.orderType == 'Sales' ? 'Supply Only' : 'Supply with Installation',
         'custom_subject': q.customSubject,
@@ -149,6 +160,15 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
         'party_name': null,
         'customer_name': '',
         'custom_customer_name_in_arabic': '',
+        'customer_address': '',
+        'address_display': '',
+        'custom_address_arabic': '',
+        'contact_person': '',
+        'contact_display': '',
+        'contact_mobile': '',
+        'contact_email': '',
+        'custom_contact_name_arabic': '',
+        'custom_contact_mobile_no_arabic': '',
         'currency': 'QAR',
         'naming_series': 'SAL-QTN-.YYYY.-',
         'custom_quote_type': 'Retail',
@@ -199,6 +219,10 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
     _contactDisplayController = TextEditingController(text: _doc['contact_display']);
     _contactMobileController = TextEditingController(text: _doc['contact_mobile']);
     _contactEmailController = TextEditingController(text: _doc['contact_email']);
+    _addressDisplayController = TextEditingController(text: _doc['address_display']);
+    _addressArabicController = TextEditingController(text: _doc['custom_address_arabic']);
+    _contactNameArabicController = TextEditingController(text: _doc['custom_contact_name_arabic']);
+    _contactMobileArabicController = TextEditingController(text: _doc['custom_contact_mobile_no_arabic']);
     
     _subjectController = TextEditingController(text: _doc['custom_subject']);
     _refController = TextEditingController(text: _doc['custom_ref']);
@@ -231,6 +255,10 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
     _contactDisplayController.addListener(() => _doc['contact_display'] = _contactDisplayController.text);
     _contactMobileController.addListener(() => _doc['contact_mobile'] = _contactMobileController.text);
     _contactEmailController.addListener(() => _doc['contact_email'] = _contactEmailController.text);
+    _addressDisplayController.addListener(() => _doc['address_display'] = _addressDisplayController.text);
+    _addressArabicController.addListener(() => _doc['custom_address_arabic'] = _addressArabicController.text);
+    _contactNameArabicController.addListener(() => _doc['custom_contact_name_arabic'] = _contactNameArabicController.text);
+    _contactMobileArabicController.addListener(() => _doc['custom_contact_mobile_no_arabic'] = _contactMobileArabicController.text);
     
     _subjectController.addListener(() => _doc['custom_subject'] = _subjectController.text);
     _refController.addListener(() => _doc['custom_ref'] = _refController.text);
@@ -273,6 +301,10 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
     _contactDisplayController.dispose();
     _contactMobileController.dispose();
     _contactEmailController.dispose();
+    _addressDisplayController.dispose();
+    _addressArabicController.dispose();
+    _contactNameArabicController.dispose();
+    _contactMobileArabicController.dispose();
     
     _subjectController.dispose();
     _refController.dispose();
@@ -307,8 +339,8 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
     // Summing standard items table rows
     final itemsList = _doc['items'] as List<dynamic>? ?? [];
     for (var item in itemsList) {
-      final qty = (item['qty'] ?? 0.0) as double;
-      final rate = (item['rate'] ?? 0.0) as double;
+      final qty = (item['qty'] as num? ?? 0.0).toDouble();
+      final rate = (item['rate'] as num? ?? 0.0).toDouble();
       totalQty += qty;
       totalNet += qty * rate;
     }
@@ -318,7 +350,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
       _doc['total'] = totalNet;
       _doc['base_total'] = totalNet;
       
-      final taxes = (_doc['total_taxes_and_charges'] ?? 0.0) as double;
+      final taxes = (_doc['total_taxes_and_charges'] as num? ?? 0.0).toDouble();
       final grandTotal = totalNet + taxes;
       _doc['grand_total'] = grandTotal;
       
@@ -363,37 +395,73 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
   }
 
   // --- Auto-Fill & Customer APIs Integration ---
-  Future<void> _fetchAndAutoFillCustomer(String customerCode) async {
+  Future<void> _fetchAndAutoFillCustomer(String partyCode) async {
     setState(() => _isLoading = true);
     dynamic data;
+    final isCustomer = _doc['quotation_to'] == 'Customer';
+    final apiMethod = isCustomer
+        ? 'oasis_mobile.api.quotation.get_customer_details'
+        : 'oasis_mobile.api.quotation.get_lead_details';
+    final paramKey = isCustomer ? 'customer' : 'lead';
+
     try {
-      // Primary attempt: Use the custom API endpoint
       final res = await _apiClient.get(
-        'oasis_mobile.api.quotation.get_customer_details',
-        params: {'customer': customerCode},
+        apiMethod,
+        params: {paramKey: partyCode},
       );
       data = res['status'] == 'success' ? res : (res['message'] ?? res);
     } catch (e) {
-      debugPrint('Primary customer details API failed, attempting resource fallback: $e');
-      try {
-        // Fallback: Fetch standard Customer document directly using Frappe REST API
-        final encodedCode = Uri.encodeComponent(customerCode);
-        final res = await _apiClient.get(
-          '../resource/Customer/$encodedCode',
-        );
-        final doc = res['data'];
-        if (doc != null) {
-          data = {
-            'customer_name': doc['customer_name'] ?? doc['name'] ?? customerCode,
-            'custom_customer_name_in_arabic': doc['custom_customer_name_in_arabic'] ?? '',
-            'contact_person': doc['customer_primary_contact'] ?? '',
-            'contact_display': '',
-            'contact_mobile': '',
-            'contact_email': '',
-          };
+      debugPrint('Primary party details API failed, attempting resource fallback: $e');
+      if (isCustomer) {
+        try {
+          final encodedCode = Uri.encodeComponent(partyCode);
+          final res = await _apiClient.get(
+            '../resource/Customer/$encodedCode',
+          );
+          final doc = res['data'];
+          if (doc != null) {
+            data = {
+              'customer_name': doc['customer_name'] ?? doc['name'] ?? partyCode,
+              'custom_customer_name_in_arabic': doc['custom_customer_name_in_arabic'] ?? '',
+              'contact_person': doc['customer_primary_contact'] ?? '',
+              'contact_display': '',
+              'contact_mobile': '',
+              'contact_email': '',
+              'customer_address': '',
+              'address_display': '',
+              'custom_address_arabic': '',
+              'custom_contact_name_arabic': '',
+              'custom_contact_mobile_no_arabic': '',
+            };
+          }
+        } catch (fallbackError) {
+          debugPrint('Fallback customer resource API failed: $fallbackError');
         }
-      } catch (fallbackError) {
-        debugPrint('Fallback customer resource API failed: $fallbackError');
+      } else {
+        try {
+          final encodedCode = Uri.encodeComponent(partyCode);
+          final res = await _apiClient.get(
+            '../resource/Lead/$encodedCode',
+          );
+          final doc = res['data'];
+          if (doc != null) {
+            data = {
+              'customer_name': doc['lead_name'] ?? doc['name'] ?? partyCode,
+              'custom_customer_name_in_arabic': doc['custom_customer_name_in_arabic'] ?? '',
+              'contact_person': '',
+              'contact_display': '',
+              'contact_mobile': '',
+              'contact_email': '',
+              'customer_address': '',
+              'address_display': '',
+              'custom_address_arabic': '',
+              'custom_contact_name_arabic': '',
+              'custom_contact_mobile_no_arabic': '',
+            };
+          }
+        } catch (fallbackError) {
+          debugPrint('Fallback lead resource API failed: $fallbackError');
+        }
       }
     }
 
@@ -401,24 +469,33 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
       setState(() {
         _doc['customer_name'] = data['customer_name'] ?? '';
         _doc['custom_customer_name_in_arabic'] = data['custom_customer_name_in_arabic'] ?? '';
+        _doc['customer_address'] = data['customer_address'] ?? '';
+        _doc['address_display'] = data['address_display'] ?? '';
+        _doc['custom_address_arabic'] = data['custom_address_arabic'] ?? '';
         _doc['contact_person'] = data['contact_person'] ?? '';
         _doc['contact_display'] = data['contact_display'] ?? '';
         _doc['contact_mobile'] = data['contact_mobile'] ?? '';
         _doc['contact_email'] = data['contact_email'] ?? '';
+        _doc['custom_contact_name_arabic'] = data['custom_contact_name_arabic'] ?? '';
+        _doc['custom_contact_mobile_no_arabic'] = data['custom_contact_mobile_no_arabic'] ?? '';
         
         // Re-populate text controllers
         _customerNameController.text = _doc['customer_name'];
         _arabicCustomerNameController.text = _doc['custom_customer_name_in_arabic'];
+        _addressDisplayController.text = _doc['address_display'];
+        _addressArabicController.text = _doc['custom_address_arabic'];
         _contactPersonController.text = _doc['contact_person'];
         _contactDisplayController.text = _doc['contact_display'];
         _contactMobileController.text = _doc['contact_mobile'];
         _contactEmailController.text = _doc['contact_email'];
+        _contactNameArabicController.text = _doc['custom_contact_name_arabic'];
+        _contactMobileArabicController.text = _doc['custom_contact_mobile_no_arabic'];
       });
     } else {
       // If both failed, we can still pre-fill the customer code as customer name to save user time
       setState(() {
-        _doc['customer_name'] = customerCode;
-        _customerNameController.text = customerCode;
+        _doc['customer_name'] = partyCode;
+        _customerNameController.text = partyCode;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -433,6 +510,60 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
       );
     }
     
+    setState(() => _isLoading = false);
+  }
+
+  // --- Fetch Address Details & Auto-Fill ---
+  Future<void> _fetchAddressDetails(String addressCode) async {
+    setState(() => _isLoading = true);
+    try {
+      final res = await _apiClient.get(
+        'oasis_mobile.api.quotation.get_address_details',
+        params: {'address': addressCode},
+      );
+      if (res['status'] == 'success' && res['address'] != null) {
+        final addressInfo = res['address'];
+        setState(() {
+          _doc['address_display'] = addressInfo['address_display'] ?? '';
+          _doc['custom_address_arabic'] = addressInfo['custom_address_arabic'] ?? '';
+          
+          _addressDisplayController.text = _doc['address_display'];
+          _addressArabicController.text = _doc['custom_address_arabic'];
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch address details: $e');
+    }
+    setState(() => _isLoading = false);
+  }
+
+  // --- Fetch Contact Details & Auto-Fill ---
+  Future<void> _fetchContactDetails(String contactCode) async {
+    setState(() => _isLoading = true);
+    try {
+      final res = await _apiClient.get(
+        'oasis_mobile.api.quotation.get_contact_details',
+        params: {'contact': contactCode},
+      );
+      if (res['status'] == 'success' && res['contact'] != null) {
+        final contactInfo = res['contact'];
+        setState(() {
+          _doc['contact_display'] = contactInfo['contact_display'] ?? '';
+          _doc['contact_mobile'] = contactInfo['contact_mobile'] ?? '';
+          _doc['contact_email'] = contactInfo['contact_email'] ?? '';
+          _doc['custom_contact_name_arabic'] = contactInfo['custom_contact_name_arabic'] ?? '';
+          _doc['custom_contact_mobile_no_arabic'] = contactInfo['custom_contact_mobile_no_arabic'] ?? '';
+          
+          _contactDisplayController.text = _doc['contact_display'];
+          _contactMobileController.text = _doc['contact_mobile'];
+          _contactEmailController.text = _doc['contact_email'];
+          _contactNameArabicController.text = _doc['custom_contact_name_arabic'];
+          _contactMobileArabicController.text = _doc['custom_contact_mobile_no_arabic'];
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch contact details: $e');
+    }
     setState(() => _isLoading = false);
   }
 
@@ -681,8 +812,26 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
                     _doc['party_name'] = null;
                     _doc['customer_name'] = '';
                     _doc['custom_customer_name_in_arabic'] = '';
+                    _doc['customer_address'] = '';
+                    _doc['address_display'] = '';
+                    _doc['custom_address_arabic'] = '';
+                    _doc['contact_person'] = '';
+                    _doc['contact_display'] = '';
+                    _doc['contact_mobile'] = '';
+                    _doc['contact_email'] = '';
+                    _doc['custom_contact_name_arabic'] = '';
+                    _doc['custom_contact_mobile_no_arabic'] = '';
+                    
                     _customerNameController.clear();
                     _arabicCustomerNameController.clear();
+                    _addressDisplayController.clear();
+                    _addressArabicController.clear();
+                    _contactPersonController.clear();
+                    _contactDisplayController.clear();
+                    _contactMobileController.clear();
+                    _contactEmailController.clear();
+                    _contactNameArabicController.clear();
+                    _contactMobileArabicController.clear();
                   });
                 },
               ),
@@ -719,11 +868,98 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _buildCardHeader('ADDRESS DETAILS', Icons.location_on_rounded),
+              const SizedBox(height: 16),
+              _buildFieldContainer(
+                label: 'PRIMARY ADDRESS LINK',
+                isMandatory: false,
+                child: _buildSelectorTrigger(
+                  value: _doc['customer_address']?.isNotEmpty == true ? _doc['customer_address'] : null,
+                  hint: 'Select Address...',
+                  onTap: () {
+                    if (_doc['party_name'] == null || _doc['party_name'].toString().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          backgroundColor: AppColors.error,
+                          content: Text('Please select Customer/Lead first.', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
+                        ),
+                      );
+                      return;
+                    }
+                    _showSearchDialog(
+                      title: 'Select Address',
+                      doctype: 'Address',
+                      filters: {
+                        'link_doctype': _doc['quotation_to'],
+                        'link_name': _doc['party_name'],
+                      },
+                      onSelected: (selectedAddress) {
+                        setState(() => _doc['customer_address'] = selectedAddress);
+                        _fetchAddressDetails(selectedAddress);
+                      },
+                    );
+                  },
+                ),
+              ),
+              _buildTextField(
+                label: 'ADDRESS DISPLAY',
+                controller: _addressDisplayController,
+                isMandatory: false,
+                maxLines: 3,
+                hintText: 'Auto-filled...',
+              ),
+              _buildArabicField(
+                label: 'ADDRESS DISPLAY (ARABIC)',
+                controller: _addressArabicController,
+                isMandatory: false,
+                maxLines: 3,
+                hintText: 'العنوان باللغة العربية...',
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        GlassCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               _buildCardHeader('CONTACT & CORRESPONDENCE', Icons.contact_phone_rounded),
               const SizedBox(height: 16),
-              _buildTextField(label: 'CONTACT PERSON ID', controller: _contactPersonController, isMandatory: false, hintText: 'Auto-filled...'),
+              _buildFieldContainer(
+                label: 'CONTACT PERSON ID',
+                isMandatory: false,
+                child: _buildSelectorTrigger(
+                  value: _doc['contact_person']?.isNotEmpty == true ? _doc['contact_person'] : null,
+                  hint: 'Select Contact...',
+                  onTap: () {
+                    if (_doc['party_name'] == null || _doc['party_name'].toString().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          backgroundColor: AppColors.error,
+                          content: Text('Please select Customer/Lead first.', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
+                        ),
+                      );
+                      return;
+                    }
+                    _showSearchDialog(
+                      title: 'Select Contact',
+                      doctype: 'Contact',
+                      filters: {
+                        'link_doctype': _doc['quotation_to'],
+                        'link_name': _doc['party_name'],
+                      },
+                      onSelected: (selectedContact) {
+                        setState(() => _doc['contact_person'] = selectedContact);
+                        _fetchContactDetails(selectedContact);
+                      },
+                    );
+                  },
+                ),
+              ),
               _buildTextField(label: 'DISPLAY NAME', controller: _contactDisplayController, isMandatory: false, hintText: 'Auto-filled...'),
+              _buildArabicField(label: 'DISPLAY NAME (ARABIC)', controller: _contactNameArabicController, isMandatory: false, hintText: 'الاسم باللغة العربية...'),
               _buildTextField(label: 'MOBILE NUMBER', controller: _contactMobileController, isMandatory: false, keyboardType: TextInputType.phone, hintText: 'Auto-filled...'),
+              _buildArabicField(label: 'MOBILE NUMBER (ARABIC)', controller: _contactMobileArabicController, isMandatory: false, keyboardType: TextInputType.phone, hintText: 'رقم الهاتف باللغة العربية...'),
               _buildTextField(label: 'EMAIL ADDRESS', controller: _contactEmailController, isMandatory: false, keyboardType: TextInputType.emailAddress, hintText: 'Auto-filled...'),
             ],
           ),
@@ -1082,6 +1318,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
     required TextEditingController controller,
     required bool isMandatory,
     int maxLines = 1,
+    TextInputType keyboardType = TextInputType.text,
     String? hintText,
   }) {
     return _buildFieldContainer(
@@ -1090,6 +1327,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
       child: TextFormField(
         controller: controller,
         maxLines: maxLines,
+        keyboardType: keyboardType,
         textAlign: TextAlign.right,
         textDirection: ui.TextDirection.rtl,
         style: GoogleFonts.cairo(fontWeight: FontWeight.w600, color: AppColors.textPrimary, fontSize: 14),
@@ -1238,10 +1476,10 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
     );
   }
 
-  // --- Autocomplete Bottom Sheet Search Dialog Builder ---
   void _showSearchDialog({
     required String title,
     required String doctype,
+    Map<String, dynamic>? filters,
     required Function(String) onSelected,
   }) {
     showModalBottomSheet(
@@ -1277,6 +1515,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
               Expanded(
                 child: SearchableList(
                   doctype: doctype,
+                  filters: filters,
                   onSelected: onSelected,
                   scrollController: scrollController,
                 ),
@@ -2260,8 +2499,8 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
               itemCount: schedule.length,
               itemBuilder: (context, index) {
                 final term = schedule[index];
-                final portion = (term['invoice_portion'] ?? 0.0) as double;
-                final amount = (term['payment_amount'] ?? 0.0) as double;
+                final portion = (term['invoice_portion'] as num? ?? 0.0).toDouble();
+                final amount = (term['payment_amount'] as num? ?? 0.0).toDouble();
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(16),
@@ -2329,8 +2568,8 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
 
   // --- Sticky Bottom Aggregation Panel (Scale bounce effect) ---
   Widget _buildStickyTotalsPanel() {
-    final double totalQty = (_doc['total_qty'] ?? 0.0) as double;
-    final double grandTotal = (_doc['grand_total'] ?? 0.0) as double;
+    final double totalQty = (_doc['total_qty'] as num? ?? 0.0).toDouble();
+    final double grandTotal = (_doc['grand_total'] as num? ?? 0.0).toDouble();
     final int itemLength = ((_doc['items'] as List?)?.length ?? 0) + ((_doc['custom_project_item'] as List?)?.length ?? 0);
 
     return Container(
@@ -2644,12 +2883,14 @@ class SearchableList extends StatefulWidget {
   final String doctype;
   final Function(String) onSelected;
   final ScrollController scrollController;
+  final Map<String, dynamic>? filters;
 
   const SearchableList({
     super.key,
     required this.doctype,
     required this.onSelected,
     required this.scrollController,
+    this.filters,
   });
 
   @override
@@ -2696,12 +2937,17 @@ class _SearchableListState extends State<SearchableList> {
       }
 
       if (results == null) {
+        final Map<String, String> params = {
+          'doctype': widget.doctype,
+          'txt': query,
+        };
+        if (widget.filters != null) {
+          params['filters'] = jsonEncode(widget.filters);
+        }
+
         final res = await _apiClient.get(
           'oasis_mobile.api.quotation.search_link',
-          params: {
-            'doctype': widget.doctype,
-            'txt': query,
-          },
+          params: params,
         );
         
         if (res['status'] == 'success') {
@@ -2713,6 +2959,17 @@ class _SearchableListState extends State<SearchableList> {
         } else {
           results = res['results'];
         }
+      } else if (query.isNotEmpty) {
+        results = (results as List).where((item) {
+          final String name = (item['name'] ?? '').toString().toLowerCase();
+          final String val = (item['value'] ?? '').toString().toLowerCase();
+          final String label = (item['label'] ?? '').toString().toLowerCase();
+          final String companyName = (item['company_name'] ?? '').toString().toLowerCase();
+          return name.contains(query.toLowerCase()) ||
+              val.contains(query.toLowerCase()) ||
+              label.contains(query.toLowerCase()) ||
+              companyName.contains(query.toLowerCase());
+        }).toList();
       }
       
       setState(() {

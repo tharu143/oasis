@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
+import 'package:oasis/core/services/role_helper.dart';
 import 'package:oasis/features/quotation/presentation/screens/quotation_list_screen.dart';
 import 'package:oasis/features/quotation/presentation/screens/quotation_form_screen.dart';
 
@@ -17,6 +18,7 @@ class _QuotationDashboardScreenState extends State<QuotationDashboardScreen> {
   bool _isLoading = true;
   Map<String, dynamic> _dashboardData = {};
   String _userName = 'Team';
+  RoleInfo? _roleInfo;
   final ApiClient _apiClient = ApiClient();
 
   @override
@@ -28,12 +30,16 @@ class _QuotationDashboardScreenState extends State<QuotationDashboardScreen> {
 
   Future<void> _loadUserInfo() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _userName = prefs.getString('full_name') ?? 'Team';
-      if (_userName.contains(' ')) {
-        _userName = _userName.split(' ')[0]; // Just use first name for a friendlier feel
-      }
-    });
+    final roleInfo = await RoleHelper.getRoleInfoFromPrefs();
+    if (mounted) {
+      setState(() {
+        _userName = prefs.getString('full_name') ?? 'Team';
+        if (_userName.contains(' ')) {
+          _userName = _userName.split(' ')[0];
+        }
+        _roleInfo = roleInfo;
+      });
+    }
   }
 
   Future<void> _fetchDashboardData() async {
@@ -343,12 +349,21 @@ class _QuotationDashboardScreenState extends State<QuotationDashboardScreen> {
     final int actionCount = _dashboardData['action_required'] ?? 0;
     if (actionCount == 0) return const SizedBox.shrink();
 
+    // Use role-based state — Sales User→Draft, Accounts→Pending, Oasis Mgr→Verified
+    final roleInfo = _roleInfo;
+    final String filterState = roleInfo?.actionState ?? 'Draft';
+    final String actionDesc = RoleHelper.getActionDescription(
+      roleInfo?.roles ?? [],
+      actionCount,
+      'quotes',
+    );
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => QuotationListScreen(filterStatus: 'Pending'),
+            builder: (context) => QuotationListScreen(filterStatus: filterState),
           ),
         );
       },
@@ -396,7 +411,7 @@ class _QuotationDashboardScreenState extends State<QuotationDashboardScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'You have $actionCount quotes to review',
+                    actionDesc,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,

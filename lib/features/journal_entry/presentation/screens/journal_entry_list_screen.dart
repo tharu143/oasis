@@ -85,7 +85,7 @@ class _JournalEntryListScreenState extends State<JournalEntryListScreen> {
         params['workflow_state'] = _selectedState;
       }
       if (_searchQuery.isNotEmpty) {
-        params['search_query'] = _searchQuery;
+        params['search_txt'] = _searchQuery;
       }
 
       final response = await _apiClient.get(
@@ -275,8 +275,8 @@ class _JournalEntryListScreenState extends State<JournalEntryListScreen> {
     final company = item['company'] ?? '';
     final type = item['voucher_type'] ?? 'Journal Entry';
     final date = item['posting_date'] ?? '';
-    final debit = (item['total_debit'] ?? 0.0) as double;
-    final credit = (item['total_credit'] ?? 0.0) as double;
+    final debit = (item['total_debit'] as num? ?? 0.0).toDouble();
+    final credit = (item['total_credit'] as num? ?? 0.0).toDouble();
     final state = item['workflow_state'] ?? 'Draft';
 
     Color stateCol;

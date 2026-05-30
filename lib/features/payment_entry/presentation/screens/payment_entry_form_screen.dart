@@ -43,7 +43,7 @@ class _PaymentEntryFormScreenState extends State<PaymentEntryFormScreen> with Si
 
   // Tab 5 Fields
   String _referenceNo = '';
-  DateTime? _referenceDate;
+  DateTime? _referenceDate = DateTime.now();
   String _remarks = '';
   bool _customRemarks = false;
 
@@ -176,6 +176,35 @@ class _PaymentEntryFormScreenState extends State<PaymentEntryFormScreen> with Si
     });
   }
 
+  Future<void> _fetchDefaultPaymentAccount(String modeOfPayment) async {
+    if (modeOfPayment.isEmpty) return;
+    try {
+      final response = await _apiClient.get(
+        'oasis_mobile.api.payment_entry.get_default_payment_account',
+        params: {
+          'mode_of_payment': modeOfPayment,
+          'company': _company,
+          'payment_type': _paymentType,
+        },
+      );
+      final message = response['message'] ?? response;
+      if (response['status'] == 'success' || message['status'] == 'success') {
+        final account = message['account'] ?? response['account'];
+        if (account != null && account.toString().isNotEmpty) {
+          setState(() {
+            if (_paymentType == 'Receive') {
+              _paidTo = account.toString();
+            } else if (_paymentType == 'Pay') {
+              _paidFrom = account.toString();
+            }
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching default payment account: $e');
+    }
+  }
+
   double get _totalAllocatedAmount {
     return _references.fold(0.0, (sum, ref) => sum + ref.allocatedAmount);
   }
@@ -194,12 +223,21 @@ class _PaymentEntryFormScreenState extends State<PaymentEntryFormScreen> with Si
   bool get _isTab1Valid => _company.isNotEmpty && _modeOfPayment.isNotEmpty;
   bool get _isTab2Valid => (_paymentType == 'Internal Transfer') || (_party.isNotEmpty && _paidFrom.isNotEmpty && _paidTo.isNotEmpty);
   bool get _isTab3Valid => _paidAmount > 0 && _receivedAmount > 0 && _targetExchangeRate > 0;
+  bool get _needsReferenceDetails {
+    final modeLower = _modeOfPayment.toLowerCase();
+    // Bank modes: Cheque, Credit Card, Wire Transfer, Bank Draft
+    final isBankType = modeLower.contains('cheque') ||
+        modeLower.contains('credit card') ||
+        modeLower.contains('wire') ||
+        modeLower.contains('draft');
+    return isBankType;
+  }
+
   bool get _isTab5Valid {
-    // Cheque no & date mandatory for Bank/Card/Cheque mode
-    final needsCheque = _modeOfPayment.toLowerCase().contains('bank') ||
-        _modeOfPayment.toLowerCase().contains('card') ||
-        _modeOfPayment.toLowerCase().contains('cheque');
-    if (needsCheque && _referenceNo.trim().isEmpty) return false;
+    if (_needsReferenceDetails) {
+      if (_referenceNo.trim().isEmpty) return false;
+      if (_referenceDate == null) return false;
+    }
     return !_isOverAllocated;
   }
 
@@ -550,6 +588,7 @@ class _PaymentEntryFormScreenState extends State<PaymentEntryFormScreen> with Si
                         _paymentType = type;
                         _applySmartAccountsDefault();
                       });
+                      _fetchDefaultPaymentAccount(_modeOfPayment);
                     },
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
@@ -581,7 +620,12 @@ class _PaymentEntryFormScreenState extends State<PaymentEntryFormScreen> with Si
             label: 'Company',
             value: _company,
             doctype: 'Company',
-            onChanged: (val) => setState(() => _company = val),
+            onChanged: (val) {
+              setState(() {
+                _company = val;
+              });
+              _fetchDefaultPaymentAccount(_modeOfPayment);
+            },
             mandatory: true,
           ),
           const SizedBox(height: 20),
@@ -595,7 +639,12 @@ class _PaymentEntryFormScreenState extends State<PaymentEntryFormScreen> with Si
             label: 'Mode of Payment',
             value: _modeOfPayment,
             doctype: 'Mode of Payment',
-            onChanged: (val) => setState(() => _modeOfPayment = val),
+            onChanged: (val) {
+              setState(() {
+                _modeOfPayment = val;
+              });
+              _fetchDefaultPaymentAccount(val);
+            },
             mandatory: true,
           ),
         ],
@@ -997,10 +1046,6 @@ class _PaymentEntryFormScreenState extends State<PaymentEntryFormScreen> with Si
 
   // --- TAB 5: Review & Signatures ---
   Widget _buildTab5() {
-    final isCardOrBank = _modeOfPayment.toLowerCase().contains('bank') ||
-        _modeOfPayment.toLowerCase().contains('card') ||
-        _modeOfPayment.toLowerCase().contains('cheque');
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -1012,13 +1057,14 @@ class _PaymentEntryFormScreenState extends State<PaymentEntryFormScreen> with Si
             label: 'Cheque/Reference No',
             value: _referenceNo,
             onChanged: (val) => setState(() => _referenceNo = val),
-            mandatory: isCardOrBank,
+            mandatory: _needsReferenceDetails,
           ),
           const SizedBox(height: 20),
           _buildDatePickerField(
             label: 'Cheque/Reference Date',
             value: _referenceDate ?? DateTime.now(),
             onChanged: (date) => setState(() => _referenceDate = date),
+            mandatory: _needsReferenceDetails,
           ),
           const SizedBox(height: 24),
           _buildSectionTitle('Remarks & Additional Meta'),
@@ -1073,7 +1119,7 @@ class _PaymentEntryFormScreenState extends State<PaymentEntryFormScreen> with Si
             ),
           ),
           const SizedBox(height: 30),
-          _buildValidationSummaryGrid(isCardOrBank),
+          _buildValidationSummaryGrid(_needsReferenceDetails),
           const SizedBox(height: 30),
         ],
       ),
@@ -1145,7 +1191,7 @@ class _PaymentEntryFormScreenState extends State<PaymentEntryFormScreen> with Si
           _buildCheckItem('Party & Source/Target mapped', _isTab2Valid),
           _buildCheckItem('Valid payment amount set', _isTab3Valid),
           if (chequeMandatory)
-            _buildCheckItem('Cheque / Reference no provided', _referenceNo.isNotEmpty),
+            _buildCheckItem('Cheque / Reference details provided', _referenceNo.trim().isNotEmpty && _referenceDate != null),
           _buildCheckItem('Allocations match paid amount', !_isOverAllocated),
         ],
       ),
@@ -1300,13 +1346,20 @@ class _PaymentEntryFormScreenState extends State<PaymentEntryFormScreen> with Si
     required String label,
     required DateTime value,
     required ValueChanged<DateTime> onChanged,
+    bool mandatory = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: AppColors.textSecondary, fontSize: 12),
+        Row(
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: AppColors.textSecondary, fontSize: 12),
+            ),
+            if (mandatory)
+              Text(' *', style: GoogleFonts.plusJakartaSans(color: Colors.red, fontWeight: FontWeight.bold)),
+          ],
         ),
         const SizedBox(height: 8),
         InkWell(

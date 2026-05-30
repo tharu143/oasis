@@ -59,7 +59,7 @@ class _SalesInvoiceDashboardScreenState extends State<SalesInvoiceDashboardScree
         };
       }
       setState(() {
-        _dashboardData = response;
+        _dashboardData = response['message'] ?? response['data'] ?? response;
         _isLoading = false;
       });
     } catch (e) {
@@ -472,7 +472,12 @@ class _SalesInvoiceDashboardScreenState extends State<SalesInvoiceDashboardScree
           'Create a blank Sales Invoice',
           Icons.add_box_outlined,
           const Color(0xFF8B5CF6),
-          () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SalesInvoiceFormScreen())),
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const SalesInvoiceFormScreen()),
+          ).then((_) {
+            _fetchDashboardData();
+          }),
         ),
       ],
     );
@@ -536,7 +541,9 @@ class _SalesInvoiceDashboardScreenState extends State<SalesInvoiceDashboardScree
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const SalesInvoiceFormScreen()),
-          );
+          ).then((_) {
+            _fetchDashboardData();
+          });
         },
         backgroundColor: const Color(0xFF10B981),
         elevation: 0,

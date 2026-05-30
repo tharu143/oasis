@@ -5,6 +5,7 @@ import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
 import 'delivery_note_list_screen.dart';
 import 'delivery_note_form_screen.dart';
+import 'package:oasis/core/services/role_helper.dart';
 
 class DeliveryNoteDashboardScreen extends StatefulWidget {
   const DeliveryNoteDashboardScreen({super.key});
@@ -26,13 +27,17 @@ class _DeliveryNoteDashboardScreenState extends State<DeliveryNoteDashboardScree
     _fetchDashboardData();
   }
 
+  RoleInfo? _roleInfo;
+
   Future<void> _loadUserInfo() async {
     final prefs = await SharedPreferences.getInstance();
+    final roleInfo = await RoleHelper.getRoleInfoFromPrefs();
     setState(() {
       _userName = prefs.getString('full_name') ?? 'Team';
       if (_userName.contains(' ')) {
         _userName = _userName.split(' ')[0]; // Friendly first name
       }
+      _roleInfo = roleInfo;
     });
   }
 
@@ -345,12 +350,20 @@ class _DeliveryNoteDashboardScreenState extends State<DeliveryNoteDashboardScree
     final int actionCount = _dashboardData['action_required'] ?? 0;
     if (actionCount == 0) return const SizedBox.shrink();
 
+    final roleInfo = _roleInfo;
+    final String filterState = roleInfo?.actionState ?? 'Draft';
+    final String actionDesc = RoleHelper.getActionDescription(
+      roleInfo?.roles ?? [],
+      actionCount,
+      'notes',
+    );
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => const DeliveryNoteListScreen(filterStatus: 'Pending'),
+            builder: (context) => DeliveryNoteListScreen(filterStatus: filterState),
           ),
         );
       },
@@ -398,7 +411,7 @@ class _DeliveryNoteDashboardScreenState extends State<DeliveryNoteDashboardScree
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'You have $actionCount notes pending verification',
+                    actionDesc,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,

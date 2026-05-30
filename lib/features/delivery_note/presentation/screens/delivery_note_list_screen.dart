@@ -62,7 +62,7 @@ class _DeliveryNoteListScreenState extends State<DeliveryNoteListScreen> {
       }
 
       if (_searchQuery.isNotEmpty) {
-        params['search_term'] = _searchQuery;
+        params['search_txt'] = _searchQuery;
       }
 
       final response = await _apiClient.get('oasis_mobile.api.delivery_note.get_delivery_note_list', params: params);
@@ -108,8 +108,8 @@ class _DeliveryNoteListScreenState extends State<DeliveryNoteListScreen> {
             padding: const EdgeInsets.all(16.0),
             child: TextField(
               controller: _searchController,
-              onSubmitted: (val) {
-                setState(() => _searchQuery = val);
+              onChanged: (val) {
+                setState(() => _searchQuery = val.trim());
                 _fetchDeliveryNotes(refresh: true);
               },
               style: const TextStyle(color: AppColors.textPrimary),
@@ -117,6 +117,16 @@ class _DeliveryNoteListScreenState extends State<DeliveryNoteListScreen> {
                 hintText: 'Search by ID or Customer...',
                 hintStyle: const TextStyle(color: AppColors.textLight),
                 prefixIcon: const Icon(Icons.search, color: Color(0xFF3B82F6), size: 20),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: AppColors.textSecondary, size: 18),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                          _fetchDeliveryNotes(refresh: true);
+                        },
+                      )
+                    : null,
                 fillColor: Colors.white,
                 filled: true,
                 border: OutlineInputBorder(
@@ -206,7 +216,9 @@ class _DeliveryNoteListScreenState extends State<DeliveryNoteListScreen> {
             MaterialPageRoute(
               builder: (context) => DeliveryNoteDetailScreen(deliveryNote: note),
             ),
-          );
+          ).then((_) {
+            _fetchDeliveryNotes(refresh: true);
+          });
         },
         borderRadius: BorderRadius.circular(24),
         child: Padding(

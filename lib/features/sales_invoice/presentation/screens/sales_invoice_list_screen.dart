@@ -63,7 +63,7 @@ class _SalesInvoiceListScreenState extends State<SalesInvoiceListScreen> {
       }
 
       if (_searchQuery.isNotEmpty) {
-        params['search_term'] = _searchQuery;
+        params['search_txt'] = _searchQuery;
       }
 
       dynamic response;
@@ -82,7 +82,7 @@ class _SalesInvoiceListScreenState extends State<SalesInvoiceListScreen> {
           filters.add('["status","=","${widget.filterStatus}"]');
         }
         if (_searchQuery.isNotEmpty) {
-          filters.add('["customer_name","like","%$_searchQuery%"]');
+          restParams['or_filters'] = '[["name","like","%$_searchQuery%"],["customer","like","%$_searchQuery%"],["customer_name","like","%$_searchQuery%"]]';
         }
         if (filters.isNotEmpty) {
           restParams['filters'] = '[${filters.join(",")}]';
@@ -130,15 +130,25 @@ class _SalesInvoiceListScreenState extends State<SalesInvoiceListScreen> {
             padding: const EdgeInsets.all(16.0),
             child: TextField(
               controller: _searchController,
-              onSubmitted: (val) {
-                setState(() => _searchQuery = val);
+              onChanged: (val) {
+                setState(() => _searchQuery = val.trim());
                 _fetchSalesInvoices(refresh: true);
               },
               style: const TextStyle(color: AppColors.textPrimary),
               decoration: InputDecoration(
-                hintText: 'Search by Customer...',
+                hintText: 'Search by ID or Customer...',
                 hintStyle: const TextStyle(color: AppColors.textLight),
                 prefixIcon: const Icon(Icons.search, color: Color(0xFF8B5CF6), size: 20),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: AppColors.textSecondary, size: 18),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                          _fetchSalesInvoices(refresh: true);
+                        },
+                      )
+                    : null,
                 fillColor: Colors.white,
                 filled: true,
                 border: OutlineInputBorder(
@@ -228,7 +238,9 @@ class _SalesInvoiceListScreenState extends State<SalesInvoiceListScreen> {
             MaterialPageRoute(
               builder: (context) => SalesInvoiceDetailScreen(salesInvoice: invoice),
             ),
-          );
+          ).then((_) {
+            _fetchSalesInvoices(refresh: true);
+          });
         },
         borderRadius: BorderRadius.circular(24),
         child: Padding(

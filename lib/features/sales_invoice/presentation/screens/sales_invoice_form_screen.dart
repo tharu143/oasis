@@ -83,18 +83,41 @@ class _SalesInvoiceFormScreenState extends State<SalesInvoiceFormScreen> with Ti
       final cleaned = Map<String, dynamic>.from(widget.initialData!);
       final systemKeys = [
         'name', 'creation', 'modified', 'modified_by', 'owner', 'docstatus',
-        'idx', 'amended_from', 'workflow_state', 'workflow_actions', 'status'
+        'idx', 'amended_from', 'workflow_state', 'workflow_actions', 'status',
+        'custom_prepared_by', 'custom_prepared_by_name',
+        'custom_verified_by', 'custom_verified_by_name',
+        'custom_approved_by', 'custom_approved_by_name',
+        'custom_prepared_by_role'
       ];
       for (var key in systemKeys) {
         cleaned.remove(key);
       }
       if (cleaned['items'] is List) {
         cleaned['items'] = (cleaned['items'] as List).map((item) {
-          final itemMap = Map<String, dynamic>.from(item);
-          final itemSystemKeys = ['name', 'parent', 'parentfield', 'parenttype', 'creation', 'modified', 'modified_by', 'owner', 'docstatus', 'idx'];
+          final itemMap = Map<String, dynamic>.from(item as Map);
+          final itemSystemKeys = [
+            'name', 'parent', 'parentfield', 'parenttype',
+            'creation', 'modified', 'modified_by', 'owner', 'docstatus', 'idx'
+          ];
           for (var key in itemSystemKeys) {
             itemMap.remove(key);
           }
+          // Safe numeric casting — prevents TypeError when backend sends int for double fields
+          itemMap['qty'] = (itemMap['qty'] as num? ?? 0.0).toDouble();
+          itemMap['rate'] = (itemMap['rate'] as num? ?? 0.0).toDouble();
+          itemMap['amount'] = (itemMap['amount'] as num? ?? 0.0).toDouble();
+          itemMap['price_list_rate'] = (itemMap['price_list_rate'] as num? ?? 0.0).toDouble();
+          itemMap['base_price_list_rate'] = (itemMap['base_price_list_rate'] as num? ?? 0.0).toDouble();
+          itemMap['base_rate'] = (itemMap['base_rate'] as num? ?? 0.0).toDouble();
+          itemMap['base_amount'] = (itemMap['base_amount'] as num? ?? 0.0).toDouble();
+          itemMap['discount_percentage'] = (itemMap['discount_percentage'] as num? ?? 0.0).toDouble();
+          itemMap['discount_amount'] = (itemMap['discount_amount'] as num? ?? 0.0).toDouble();
+          itemMap['net_rate'] = (itemMap['net_rate'] as num? ?? 0.0).toDouble();
+          itemMap['net_amount'] = (itemMap['net_amount'] as num? ?? 0.0).toDouble();
+          itemMap['delivered_qty'] = (itemMap['delivered_qty'] as num? ?? 0.0).toDouble();
+          itemMap['billed_amt'] = (itemMap['billed_amt'] as num? ?? 0.0).toDouble();
+          itemMap['stock_qty'] = (itemMap['stock_qty'] as num? ?? 0.0).toDouble();
+          itemMap['conversion_factor'] = (itemMap['conversion_factor'] as num? ?? 1.0).toDouble();
           return itemMap;
         }).toList();
       }
@@ -183,8 +206,8 @@ class _SalesInvoiceFormScreenState extends State<SalesInvoiceFormScreen> with Ti
 
     final itemsList = _doc['items'] as List<dynamic>? ?? [];
     for (var item in itemsList) {
-      final qty = (item['qty'] ?? 0.0) as double;
-      final rate = (item['rate'] ?? 0.0) as double;
+      final qty = (item['qty'] as num? ?? 0.0).toDouble();
+      final rate = (item['rate'] as num? ?? 0.0).toDouble();
       totalQty += qty;
       netTotal += qty * rate;
     }
@@ -974,8 +997,8 @@ class _SalesInvoiceFormScreenState extends State<SalesInvoiceFormScreen> with Ti
                   itemCount: milestones.length,
                   itemBuilder: (context, index) {
                     final term = milestones[index];
-                    final portion = (term['invoice_portion'] ?? 0.0) as double;
-                    final amt = (term['payment_amount'] ?? 0.0) as double;
+                    final portion = (term['invoice_portion'] as num? ?? 0.0).toDouble();
+                    final amt = (term['payment_amount'] as num? ?? 0.0).toDouble();
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.all(12),
@@ -1457,7 +1480,13 @@ class _SearchLinkSheetState extends State<_SearchLinkSheet> {
           'limit_page_length': '30',
         };
         if (_query.isNotEmpty) {
-          params['filters'] = '[["name","like","%$_query%"]]';
+          if (widget.doctype == 'Customer') {
+            params['or_filters'] = '[["name","like","%$_query%"],["customer_name","like","%$_query%"]]';
+          } else if (widget.doctype == 'Supplier') {
+            params['or_filters'] = '[["name","like","%$_query%"],["supplier_name","like","%$_query%"]]';
+          } else {
+            params['filters'] = '[["name","like","%$_query%"]]';
+          }
         }
         final res = await _apiClient.get('../resource/${widget.doctype}', params: params);
         final List<dynamic> data = res['data'] ?? [];

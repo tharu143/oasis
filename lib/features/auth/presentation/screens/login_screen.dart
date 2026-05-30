@@ -62,6 +62,10 @@ class _LoginScreenState extends State<LoginScreen> {
         'pwd': _passwordController.text,
       });
 
+      if (response != null && response['status'] == 'error') {
+        throw response['message'] ?? 'Invalid username or password';
+      }
+
       // Save user info
       if (response['full_name'] != null) {
         await prefs.setString('full_name', response['full_name']);

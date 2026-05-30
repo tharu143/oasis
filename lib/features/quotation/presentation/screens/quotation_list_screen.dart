@@ -62,7 +62,7 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
       }
 
       if (_searchQuery.isNotEmpty) {
-        params['search_term'] = _searchQuery;
+        params['search_txt'] = _searchQuery;
       }
       if (widget.filterStatus != null) {
         params['workflow_state'] = widget.filterStatus!;
@@ -109,8 +109,8 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
             padding: const EdgeInsets.all(16.0),
             child: TextField(
               controller: _searchController,
-              onSubmitted: (val) {
-                setState(() => _searchQuery = val);
+              onChanged: (val) {
+                setState(() => _searchQuery = val.trim());
                 _fetchQuotations(refresh: true);
               },
               style: const TextStyle(color: AppColors.textPrimary),
@@ -118,6 +118,16 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
                 hintText: 'Search by ID or Customer...',
                 hintStyle: const TextStyle(color: AppColors.textLight),
                 prefixIcon: const Icon(Icons.search, color: AppColors.primary, size: 20),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: AppColors.textSecondary, size: 18),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                          _fetchQuotations(refresh: true);
+                        },
+                      )
+                    : null,
                 fillColor: Colors.white,
                 filled: true,
                 border: OutlineInputBorder(
@@ -186,7 +196,9 @@ class _QuotationListScreenState extends State<QuotationListScreen> {
             MaterialPageRoute(
               builder: (context) => QuotationDetailScreen(quotation: q),
             ),
-          );
+          ).then((_) {
+            _fetchQuotations(refresh: true);
+          });
         },
         borderRadius: BorderRadius.circular(24),
         child: Padding(

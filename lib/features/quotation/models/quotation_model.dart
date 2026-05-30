@@ -200,6 +200,14 @@ class Quotation {
   final String customContactNameArabic;
   final String customContactMobileNoArabic;
   final String customAddressArabic;
+
+  // New Address & Contact Fields
+  final String customerAddress;
+  final String addressDisplay;
+  final String contactPerson;
+  final String contactDisplay;
+  final String contactMobile;
+  final String contactEmail;
   
   // Branding & Technical
   final String customBrandName;
@@ -269,6 +277,12 @@ class Quotation {
     this.customContactNameArabic = '',
     this.customContactMobileNoArabic = '',
     this.customAddressArabic = '',
+    this.customerAddress = '',
+    this.addressDisplay = '',
+    this.contactPerson = '',
+    this.contactDisplay = '',
+    this.contactMobile = '',
+    this.contactEmail = '',
     this.customBrandName = '',
     this.customBrandNameInArabic = '',
     this.customCountryOfOrigin = '',
@@ -352,6 +366,12 @@ class Quotation {
       customContactNameArabic: (json['custom_contact_name_arabic'] ?? '').toString(),
       customContactMobileNoArabic: (json['custom_contact_mobile_no_arabic'] ?? '').toString(),
       customAddressArabic: (json['custom_address_arabic'] ?? '').toString(),
+      customerAddress: (json['customer_address'] ?? '').toString(),
+      addressDisplay: (json['address_display'] ?? '').toString(),
+      contactPerson: (json['contact_person'] ?? '').toString(),
+      contactDisplay: (json['contact_display'] ?? '').toString(),
+      contactMobile: (json['contact_mobile'] ?? '').toString(),
+      contactEmail: (json['contact_email'] ?? '').toString(),
       customBrandName: (json['custom_brand_name'] ?? '').toString(),
       customBrandNameInArabic: (json['custom_brand_name_in_arabic'] ?? '').toString(),
       customCountryOfOrigin: (json['custom_country_of_origin'] ?? '').toString(),
@@ -409,6 +429,12 @@ class Quotation {
       'custom_subject_in_arabic': customSubjectInArabic,
       'custom_amc_period': customAmcPeriod,
       'custom_customer_name_in_arabic': customCustomerNameInArabic,
+      'customer_address': customerAddress,
+      'address_display': addressDisplay,
+      'contact_person': contactPerson,
+      'contact_display': contactDisplay,
+      'contact_mobile': contactMobile,
+      'contact_email': contactEmail,
       'custom_brand_name': customBrandName,
       'custom_brand_name_in_arabic': customBrandNameInArabic,
       'custom_country_of_origin': customCountryOfOrigin,

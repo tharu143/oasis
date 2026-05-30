@@ -85,18 +85,39 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
       final cleaned = Map<String, dynamic>.from(widget.initialData!);
       final systemKeys = [
         'name', 'creation', 'modified', 'modified_by', 'owner', 'docstatus',
-        'idx', 'amended_from', 'workflow_state', 'workflow_actions', 'status'
+        'idx', 'amended_from', 'workflow_state', 'workflow_actions', 'status',
+        'custom_prepared_by', 'custom_prepared_by_name',
+        'custom_verified_by', 'custom_verified_by_name',
+        'custom_approved_by', 'custom_approved_by_name',
+        'custom_prepared_by_role'
       ];
       for (var key in systemKeys) {
         cleaned.remove(key);
       }
       if (cleaned['items'] is List) {
         cleaned['items'] = (cleaned['items'] as List).map((item) {
-          final itemMap = Map<String, dynamic>.from(item);
-          final itemSystemKeys = ['name', 'parent', 'parentfield', 'parenttype', 'creation', 'modified', 'modified_by', 'owner', 'docstatus', 'idx'];
+          final itemMap = Map<String, dynamic>.from(item as Map);
+          final itemSystemKeys = [
+            'name', 'parent', 'parentfield', 'parenttype',
+            'creation', 'modified', 'modified_by', 'owner', 'docstatus', 'idx'
+          ];
           for (var key in itemSystemKeys) {
             itemMap.remove(key);
           }
+          // Safe numeric casting — prevents TypeError when backend sends int for double fields
+          itemMap['qty'] = (itemMap['qty'] as num? ?? 0.0).toDouble();
+          itemMap['rate'] = (itemMap['rate'] as num? ?? 0.0).toDouble();
+          itemMap['amount'] = (itemMap['amount'] as num? ?? 0.0).toDouble();
+          itemMap['price_list_rate'] = (itemMap['price_list_rate'] as num? ?? 0.0).toDouble();
+          itemMap['base_price_list_rate'] = (itemMap['base_price_list_rate'] as num? ?? 0.0).toDouble();
+          itemMap['base_rate'] = (itemMap['base_rate'] as num? ?? 0.0).toDouble();
+          itemMap['base_amount'] = (itemMap['base_amount'] as num? ?? 0.0).toDouble();
+          itemMap['discount_percentage'] = (itemMap['discount_percentage'] as num? ?? 0.0).toDouble();
+          itemMap['discount_amount'] = (itemMap['discount_amount'] as num? ?? 0.0).toDouble();
+          itemMap['net_rate'] = (itemMap['net_rate'] as num? ?? 0.0).toDouble();
+          itemMap['net_amount'] = (itemMap['net_amount'] as num? ?? 0.0).toDouble();
+          itemMap['stock_qty'] = (itemMap['stock_qty'] as num? ?? 0.0).toDouble();
+          itemMap['conversion_factor'] = (itemMap['conversion_factor'] as num? ?? 1.0).toDouble();
           return itemMap;
         }).toList();
       }
@@ -184,8 +205,8 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
 
     final itemsList = _doc['items'] as List<dynamic>? ?? [];
     for (var item in itemsList) {
-      final qty = (item['qty'] ?? 0.0) as double;
-      final rate = (item['rate'] ?? 0.0) as double;
+      final qty = (item['qty'] as num? ?? 0.0).toDouble();
+      final rate = (item['rate'] as num? ?? 0.0).toDouble();
       totalQty += qty;
       netTotal += qty * rate;
     }
@@ -1022,8 +1043,8 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
             itemCount: schedule.length,
             itemBuilder: (context, index) {
               final term = schedule[index];
-              final portion = (term['invoice_portion'] ?? 0.0) as double;
-              final amount = (term['payment_amount'] ?? 0.0) as double;
+              final portion = (term['invoice_portion'] as num? ?? 0.0).toDouble();
+              final amount = (term['payment_amount'] as num? ?? 0.0).toDouble();
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(16),
@@ -1115,8 +1136,8 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
 
   // --- Sticky Bottom Aggregation Panel ---
   Widget _buildStickyTotalsPanel() {
-    final double totalQty = (_doc['total_qty'] ?? 0.0) as double;
-    final double grandTotal = (_doc['grand_total'] ?? 0.0) as double;
+    final double totalQty = (_doc['total_qty'] as num? ?? 0.0).toDouble();
+    final double grandTotal = (_doc['grand_total'] as num? ?? 0.0).toDouble();
     final int itemLength = (_doc['items'] as List?)?.length ?? 0;
 
     return Container(
@@ -1446,7 +1467,12 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
     );
   }
 
-  void _showSearchDialog({required String title, required String doctype, required Function(String) onSelected}) {
+  void _showSearchDialog({
+    required String title,
+    required String doctype,
+    Map<String, dynamic>? filters,
+    required Function(String) onSelected,
+  }) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1479,6 +1505,7 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
               Expanded(
                 child: SearchableList(
                   doctype: doctype,
+                  filters: filters,
                   onSelected: onSelected,
                   scrollController: scrollController,
                 ),
@@ -1702,12 +1729,14 @@ class SearchableList extends StatefulWidget {
   final String doctype;
   final Function(String) onSelected;
   final ScrollController scrollController;
+  final Map<String, dynamic>? filters;
 
   const SearchableList({
     super.key,
     required this.doctype,
     required this.onSelected,
     required this.scrollController,
+    this.filters,
   });
 
   @override
@@ -1756,18 +1785,30 @@ class _SearchableListState extends State<SearchableList> {
         try {
           res = await _apiClient.get(
             'oasis_mobile.api.delivery_note.search_link',
-            params: {'doctype': widget.doctype, 'txt': query},
+            params: {
+              'doctype': widget.doctype,
+              'txt': query,
+              if (widget.filters != null) 'filters': jsonEncode(widget.filters),
+            },
           );
         } catch (_) {
           try {
             res = await _apiClient.get(
               'oasis_mobile.api.sales_order.search_link',
-              params: {'doctype': widget.doctype, 'txt': query},
+              params: {
+                'doctype': widget.doctype,
+                'txt': query,
+                if (widget.filters != null) 'filters': jsonEncode(widget.filters),
+              },
             );
           } catch (_) {
             res = await _apiClient.get(
               'oasis_mobile.api.quotation.search_link',
-              params: {'doctype': widget.doctype, 'txt': query},
+              params: {
+                'doctype': widget.doctype,
+                'txt': query,
+                if (widget.filters != null) 'filters': jsonEncode(widget.filters),
+              },
             );
           }
         }
@@ -1781,6 +1822,17 @@ class _SearchableListState extends State<SearchableList> {
         } else {
           results = res['results'];
         }
+      } else if (query.isNotEmpty) {
+        results = (results as List).where((item) {
+          final String name = (item['name'] ?? '').toString().toLowerCase();
+          final String val = (item['value'] ?? '').toString().toLowerCase();
+          final String label = (item['label'] ?? '').toString().toLowerCase();
+          final String companyName = (item['company_name'] ?? '').toString().toLowerCase();
+          return name.contains(query.toLowerCase()) ||
+              val.contains(query.toLowerCase()) ||
+              label.contains(query.toLowerCase()) ||
+              companyName.contains(query.toLowerCase());
+        }).toList();
       }
       
       setState(() {

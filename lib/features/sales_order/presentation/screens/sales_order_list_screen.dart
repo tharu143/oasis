@@ -62,7 +62,7 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
       }
 
       if (_searchQuery.isNotEmpty) {
-        params['search_term'] = _searchQuery;
+        params['search_txt'] = _searchQuery;
       }
 
       final response = await _apiClient.get('oasis_mobile.api.sales_order.get_sales_order_list', params: params);
@@ -108,8 +108,8 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
             padding: const EdgeInsets.all(16.0),
             child: TextField(
               controller: _searchController,
-              onSubmitted: (val) {
-                setState(() => _searchQuery = val);
+              onChanged: (val) {
+                setState(() => _searchQuery = val.trim());
                 _fetchSalesOrders(refresh: true);
               },
               style: const TextStyle(color: AppColors.textPrimary),
@@ -117,6 +117,16 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
                 hintText: 'Search by ID or Customer...',
                 hintStyle: const TextStyle(color: AppColors.textLight),
                 prefixIcon: const Icon(Icons.search, color: Color(0xFF10B981), size: 20),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: AppColors.textSecondary, size: 18),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                          _fetchSalesOrders(refresh: true);
+                        },
+                      )
+                    : null,
                 fillColor: Colors.white,
                 filled: true,
                 border: OutlineInputBorder(
@@ -206,7 +216,9 @@ class _SalesOrderListScreenState extends State<SalesOrderListScreen> {
             MaterialPageRoute(
               builder: (context) => SalesOrderDetailScreen(salesOrder: order),
             ),
-          );
+          ).then((_) {
+            _fetchSalesOrders(refresh: true);
+          });
         },
         borderRadius: BorderRadius.circular(24),
         child: Padding(

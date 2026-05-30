@@ -85,7 +85,7 @@ class _PaymentEntryListScreenState extends State<PaymentEntryListScreen> {
         params['workflow_state'] = _selectedState;
       }
       if (_searchQuery.isNotEmpty) {
-        params['search_query'] = _searchQuery;
+        params['search_txt'] = _searchQuery;
       }
 
       final response = await _apiClient.get(
@@ -275,8 +275,8 @@ class _PaymentEntryListScreenState extends State<PaymentEntryListScreen> {
     final company = item['company'] ?? '';
     final paymentType = item['payment_type'] ?? 'Receive';
     final date = item['posting_date'] ?? '';
-    final paidAmount = (item['paid_amount'] ?? 0.0) as double;
-    final receivedAmount = (item['received_amount'] ?? 0.0) as double;
+    final paidAmount = (item['paid_amount'] as num? ?? 0.0).toDouble();
+    final receivedAmount = (item['received_amount'] as num? ?? 0.0).toDouble();
     final state = item['workflow_state'] ?? 'Draft';
     final mode = item['mode_of_payment'] ?? '';
     final party = item['party'] ?? '';

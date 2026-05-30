@@ -129,8 +129,8 @@ class _JournalEntryFormScreenState extends State<JournalEntryFormScreen> with Ti
 
     final List<dynamic> accounts = _doc['accounts'] as List<dynamic>? ?? [];
     for (var acc in accounts) {
-      totalDebit += (acc['debit'] ?? 0.0) as double;
-      totalCredit += (acc['credit'] ?? 0.0) as double;
+      totalDebit += (acc['debit'] as num? ?? 0.0).toDouble();
+      totalCredit += (acc['credit'] as num? ?? 0.0).toDouble();
     }
 
     setState(() {
@@ -243,7 +243,7 @@ class _JournalEntryFormScreenState extends State<JournalEntryFormScreen> with Ti
     if (accounts.length < 2) {
       return 'Double-entry requires at least 2 ledger accounts on Tab 2.';
     }
-    final diff = _doc['difference'] as double? ?? 0.0;
+    final diff = (_doc['difference'] as num? ?? 0.0).toDouble();
     if (diff.abs() > 0.001) {
       return 'Unbalanced entries! Debits and Credits must balance to 0 (Difference is ${diff.toStringAsFixed(2)}).';
     }
@@ -454,9 +454,9 @@ class _JournalEntryFormScreenState extends State<JournalEntryFormScreen> with Ti
 
   Widget _buildLedgerEntriesTab() {
     final List<dynamic> accounts = _doc['accounts'] as List<dynamic>? ?? [];
-    final diff = _doc['difference'] as double? ?? 0.0;
-    final deb = _doc['total_debit'] as double? ?? 0.0;
-    final cred = _doc['total_credit'] as double? ?? 0.0;
+    final diff = (_doc['difference'] as num? ?? 0.0).toDouble();
+    final deb = (_doc['total_debit'] as num? ?? 0.0).toDouble();
+    final cred = (_doc['total_credit'] as num? ?? 0.0).toDouble();
 
     final isBalanced = diff.abs() < 0.001;
 
@@ -926,7 +926,7 @@ class _JournalEntryFormScreenState extends State<JournalEntryFormScreen> with Ti
   }
 
   Widget _buildBottomWizardActions() {
-    final diff = _doc['difference'] as double? ?? 0.0;
+    final diff = (_doc['difference'] as num? ?? 0.0).toDouble();
     final isUnbalanced = diff.abs() > 0.001;
 
     return Container(
@@ -1018,8 +1018,8 @@ class _AccountLineItemDialogState extends State<_AccountLineItemDialog> {
     super.initState();
     if (widget.editItem != null) {
       _account = widget.editItem!['account'] ?? '';
-      _debit = (widget.editItem!['debit'] ?? 0.0) as double;
-      _credit = (widget.editItem!['credit'] ?? 0.0) as double;
+      _debit = (widget.editItem!['debit'] as num? ?? 0.0).toDouble();
+      _credit = (widget.editItem!['credit'] as num? ?? 0.0).toDouble();
       _costCenter = widget.editItem!['cost_center'] ?? '';
     }
 

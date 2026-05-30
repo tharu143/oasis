@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/material_request_model.dart';
 
 class MaterialRequestFormScreen extends StatefulWidget {
@@ -25,11 +26,11 @@ class _MaterialRequestFormScreenState extends State<MaterialRequestFormScreen> w
   int _currentTabIndex = 0;
 
   // Form Field Controllers
-  late TextEditingController _subjectController;
-  late TextEditingController _remarksController;
-  late TextEditingController _requestedByController;
-  late TextEditingController _checkedByController;
-  late TextEditingController _approvedByController;
+  final _subjectController = TextEditingController();
+  final _remarksController = TextEditingController();
+  final _requestedByController = TextEditingController();
+  final _checkedByController = TextEditingController();
+  final _approvedByController = TextEditingController();
 
   @override
   void initState() {
@@ -41,13 +42,33 @@ class _MaterialRequestFormScreenState extends State<MaterialRequestFormScreen> w
       });
     });
 
-    _initializeForm();
+    _subjectController.addListener(() => _doc['custom_subject'] = _subjectController.text);
+    _remarksController.addListener(() => _doc['custom_remarks'] = _remarksController.text);
+
+    _initializeForm(); // Call synchronously first to initialize all controllers!
+    _loadCurrentUserAndInit();
   }
 
-  void _initializeForm() {
+  /// Loads the logged-in user's email/name from SharedPreferences and
+  /// auto-fills 'Prepared By' for new Material Request forms.
+  Future<void> _loadCurrentUserAndInit() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String loggedInUser = prefs.getString('username') ?? '';
+    final String loggedInFullName = prefs.getString('full_name') ?? loggedInUser;
+    if (widget.materialRequest == null && mounted) {
+      setState(() {
+        _doc['custom_requested_by'] = loggedInUser;
+        _doc['custom_requested_by_name'] = loggedInFullName;
+        _requestedByController.text = loggedInUser;
+      });
+    }
+  }
+
+  void _initializeForm({String loggedInUser = '', String loggedInFullName = ''}) {
     String todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
     if (widget.materialRequest != null) {
+      // Editing existing — keep stored audit fields as-is
       final mr = widget.materialRequest!;
       _doc = {
         'name': mr.name,
@@ -58,9 +79,11 @@ class _MaterialRequestFormScreenState extends State<MaterialRequestFormScreen> w
         'custom_subject': mr.customSubject ?? '',
         'custom_customer': mr.customCustomer ?? '',
         'custom_sales_order': mr.customSalesOrder ?? '',
+        // Keep original Prepared By from the stored record
         'custom_requested_by': mr.customRequestedBy ?? '',
         'custom_requested_by_name': mr.customRequestedByName ?? '',
         'custom_remarks': mr.customRemarks ?? '',
+        // Checked By / Approved By come from workflow — read-only
         'custom_checked_by': mr.customCheckedBy ?? '',
         'custom_checked_by_name': mr.customCheckedByName ?? '',
         'custom_approved_by': mr.customApprovedBy ?? '',
@@ -71,17 +94,45 @@ class _MaterialRequestFormScreenState extends State<MaterialRequestFormScreen> w
       final cleaned = Map<String, dynamic>.from(widget.initialData!);
       final systemKeys = [
         'name', 'creation', 'modified', 'modified_by', 'owner', 'docstatus',
-        'idx', 'amended_from', 'workflow_state', 'workflow_actions', 'status'
+        'idx', 'amended_from', 'workflow_state', 'workflow_actions', 'status',
+        'custom_requested_by', 'custom_requested_by_name',
+        'custom_checked_by', 'custom_checked_by_name',
+        'custom_approved_by', 'custom_approved_by_name'
       ];
       for (var key in systemKeys) {
         cleaned.remove(key);
       }
       if (cleaned['items'] is List) {
+        double parseDouble(dynamic value, [double defaultValue = 0.0]) {
+          if (value == null) return defaultValue;
+          if (value is num) return value.toDouble();
+          if (value is String) return double.tryParse(value) ?? defaultValue;
+          return defaultValue;
+        }
+
         cleaned['items'] = (cleaned['items'] as List).map((item) {
-          final itemMap = Map<String, dynamic>.from(item);
-          final itemSystemKeys = ['name', 'parent', 'parentfield', 'parenttype', 'creation', 'modified', 'modified_by', 'owner', 'docstatus', 'idx'];
+          final itemMap = Map<String, dynamic>.from(item as Map);
+          final itemSystemKeys = [
+            'name', 'parent', 'parentfield', 'parenttype',
+            'creation', 'modified', 'modified_by', 'owner', 'docstatus', 'idx'
+          ];
           for (var key in itemSystemKeys) {
             itemMap.remove(key);
+          }
+          // Safe numeric casting — prevents TypeError when backend sends int, double, or String for double fields
+          itemMap['qty'] = parseDouble(itemMap['qty']);
+          itemMap['rate'] = parseDouble(itemMap['rate']);
+          itemMap['amount'] = parseDouble(itemMap['amount']);
+          itemMap['stock_qty'] = parseDouble(itemMap['stock_qty']);
+          itemMap['conversion_factor'] = parseDouble(itemMap['conversion_factor'], 1.0);
+          itemMap['ordered_qty'] = parseDouble(itemMap['ordered_qty']);
+          itemMap['received_qty'] = parseDouble(itemMap['received_qty']);
+
+          // Safe fallback for schedule_date if it's missing or empty
+          if (itemMap['schedule_date'] == null || itemMap['schedule_date'].toString().trim().isEmpty) {
+            itemMap['schedule_date'] = DateFormat('yyyy-MM-dd').format(
+              DateTime.now().add(const Duration(days: 3)),
+            );
           }
           return itemMap;
         }).toList();
@@ -94,15 +145,18 @@ class _MaterialRequestFormScreenState extends State<MaterialRequestFormScreen> w
       _doc['custom_subject'] ??= '';
       _doc['custom_customer'] ??= '';
       _doc['custom_sales_order'] ??= '';
-      _doc['custom_requested_by'] ??= '';
-      _doc['custom_requested_by_name'] ??= '';
+      // Auto-fill Prepared By with current logged-in user
+      _doc['custom_requested_by'] = loggedInUser;
+      _doc['custom_requested_by_name'] = loggedInFullName;
       _doc['custom_remarks'] ??= '';
-      _doc['custom_checked_by'] ??= '';
-      _doc['custom_checked_by_name'] ??= '';
-      _doc['custom_approved_by'] ??= '';
-      _doc['custom_approved_by_name'] ??= '';
+      // Checked By / Approved By are auto-filled by workflow — start empty
+      _doc['custom_checked_by'] = '';
+      _doc['custom_checked_by_name'] = '';
+      _doc['custom_approved_by'] = '';
+      _doc['custom_approved_by_name'] = '';
       _doc['items'] ??= <Map<String, dynamic>>[];
     } else {
+      // Brand-new form — auto-fill Prepared By with logged-in user
       _doc = {
         'company': 'Oasis Trading and Importing HVAC',
         'material_request_type': 'Purchase',
@@ -111,9 +165,11 @@ class _MaterialRequestFormScreenState extends State<MaterialRequestFormScreen> w
         'custom_subject': '',
         'custom_customer': '',
         'custom_sales_order': '',
-        'custom_requested_by': '',
-        'custom_requested_by_name': '',
+        // Auto-fill: Prepared By = current logged-in user
+        'custom_requested_by': loggedInUser,
+        'custom_requested_by_name': loggedInFullName,
         'custom_remarks': '',
+        // Checked By and Approved By are auto-set by workflow — always empty on create
         'custom_checked_by': '',
         'custom_checked_by_name': '',
         'custom_approved_by': '',
@@ -126,17 +182,13 @@ class _MaterialRequestFormScreenState extends State<MaterialRequestFormScreen> w
   }
 
   void _setupControllers() {
-    _subjectController = TextEditingController(text: _doc['custom_subject']);
-    _remarksController = TextEditingController(text: _doc['custom_remarks']);
-    _requestedByController = TextEditingController(text: _doc['custom_requested_by']);
-    _checkedByController = TextEditingController(text: _doc['custom_checked_by']);
-    _approvedByController = TextEditingController(text: _doc['custom_approved_by']);
-
-    _subjectController.addListener(() => _doc['custom_subject'] = _subjectController.text);
-    _remarksController.addListener(() => _doc['custom_remarks'] = _remarksController.text);
-    _requestedByController.addListener(() => _doc['custom_requested_by'] = _requestedByController.text);
-    _checkedByController.addListener(() => _doc['custom_checked_by'] = _checkedByController.text);
-    _approvedByController.addListener(() => _doc['custom_approved_by'] = _approvedByController.text);
+    _subjectController.text = _doc['custom_subject'] ?? '';
+    _remarksController.text = _doc['custom_remarks'] ?? '';
+    // Audit fields are read-only — controllers used only for display
+    _requestedByController.text = _doc['custom_requested_by'] ?? '';
+    _checkedByController.text = _doc['custom_checked_by'] ?? '';
+    _approvedByController.text = _doc['custom_approved_by'] ?? '';
+    // Audit fields are NOT user-editable; values are set by the system/workflow
   }
 
   @override
@@ -685,9 +737,16 @@ class _MaterialRequestFormScreenState extends State<MaterialRequestFormScreen> w
                       final item = itemsList[index];
                       final code = item['item_code'] ?? '';
                       final name = item['item_name'] ?? code;
-                      final qty = (item['qty'] ?? 1.0) as double;
+                      final qty = (item['qty'] as num? ?? 1.0).toDouble();
                       final uom = item['uom'] ?? 'Nos';
                       final reqDate = item['schedule_date'] ?? '';
+
+                      DateTime parsedReqDate;
+                      try {
+                        parsedReqDate = DateTime.parse(reqDate.toString());
+                      } catch (_) {
+                        parsedReqDate = DateTime.now().add(const Duration(days: 3));
+                      }
 
                       return Dismissible(
                         key: UniqueKey(),
@@ -777,10 +836,9 @@ class _MaterialRequestFormScreenState extends State<MaterialRequestFormScreen> w
                                     // Required Date Picker
                                     InkWell(
                                       onTap: () async {
-                                        final parsed = DateTime.parse(reqDate);
                                         final picked = await showDatePicker(
                                           context: context,
-                                          initialDate: parsed,
+                                          initialDate: parsedReqDate,
                                           firstDate: DateTime(2020),
                                           lastDate: DateTime(2100),
                                         );
@@ -802,7 +860,7 @@ class _MaterialRequestFormScreenState extends State<MaterialRequestFormScreen> w
                                             const Icon(Icons.calendar_month_rounded, size: 14, color: AppColors.textLight),
                                             const SizedBox(width: 6),
                                             Text(
-                                              DateFormat('dd MMM').format(DateTime.parse(reqDate)),
+                                              DateFormat('dd MMM').format(parsedReqDate),
                                               style: GoogleFonts.plusJakartaSans(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.bold,
@@ -926,12 +984,38 @@ class _MaterialRequestFormScreenState extends State<MaterialRequestFormScreen> w
                     'Audit Signatures',
                     style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.textPrimary),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'These fields are auto-filled by the system',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 11, color: AppColors.textLight),
+                  ),
                   const SizedBox(height: 16),
-                  _buildAuditTile('Requested By (Email)', _requestedByController, 'requester@oasisqatar.com'),
+                  // Prepared By — auto-filled with logged-in user on create
+                  _buildReadOnlyAuditTile(
+                    label: 'Prepared By',
+                    controller: _requestedByController,
+                    icon: Icons.person_outline_rounded,
+                    color: AppColors.primary,
+                    emptyHint: 'Auto-filled with your login',
+                  ),
                   const SizedBox(height: 14),
-                  _buildAuditTile('Checked By (Email)', _checkedByController, 'verifier@oasisqatar.com'),
+                  // Checked By — auto-filled when Finance Team verifies
+                  _buildReadOnlyAuditTile(
+                    label: 'Verified By (Finance Team)',
+                    controller: _checkedByController,
+                    icon: Icons.verified_outlined,
+                    color: const Color(0xFF0D9488),
+                    emptyHint: 'Auto-filled when Finance verifies',
+                  ),
                   const SizedBox(height: 14),
-                  _buildAuditTile('Approved By (Email)', _approvedByController, 'manager@oasisqatar.com'),
+                  // Approved By — auto-filled when MD/Manager approves
+                  _buildReadOnlyAuditTile(
+                    label: 'Approved By (MD / Manager)',
+                    controller: _approvedByController,
+                    icon: Icons.admin_panel_settings_outlined,
+                    color: const Color(0xFF16A34A),
+                    emptyHint: 'Auto-filled when MD approves',
+                  ),
                 ],
               ),
             ),
@@ -1001,30 +1085,73 @@ class _MaterialRequestFormScreenState extends State<MaterialRequestFormScreen> w
     );
   }
 
-  Widget _buildAuditTile(String label, TextEditingController controller, String hint) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+  /// Read-only audit tile — the user CANNOT manually edit these fields.
+  /// They are auto-populated: Prepared By = logged-in user,
+  /// Checked By = Finance verifier, Approved By = MD/Manager.
+  Widget _buildReadOnlyAuditTile({
+    required String label,
+    required TextEditingController controller,
+    required IconData icon,
+    required Color color,
+    required String emptyHint,
+  }) {
+    final String displayValue = controller.text.trim();
+    final bool hasValue = displayValue.isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: hasValue ? color.withValues(alpha: 0.06) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: hasValue ? color.withValues(alpha: 0.35) : AppColors.border,
+          width: 1.5,
         ),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: controller,
-          decoration: InputDecoration(
-            hintText: hint,
-            filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Icon(icon, color: color, size: 18),
           ),
-          style: GoogleFonts.plusJakartaSans(fontSize: 13),
-        ),
-      ],
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  hasValue ? displayValue : emptyHint,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    fontWeight: hasValue ? FontWeight.w600 : FontWeight.normal,
+                    color: hasValue ? AppColors.textPrimary : AppColors.textLight,
+                    fontStyle: hasValue ? FontStyle.normal : FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            hasValue ? Icons.lock_rounded : Icons.lock_outline_rounded,
+            color: hasValue ? color : AppColors.textLight,
+            size: 16,
+          ),
+        ],
+      ),
     );
   }
 

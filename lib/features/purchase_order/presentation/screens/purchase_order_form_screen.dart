@@ -163,8 +163,8 @@ class _PurchaseOrderFormScreenState extends State<PurchaseOrderFormScreen> with 
 
     final itemsList = _doc['items'] as List<dynamic>? ?? [];
     for (var item in itemsList) {
-      final qty = (item['qty'] ?? 0.0) as double;
-      final rate = (item['rate'] ?? 0.0) as double;
+      final qty = (item['qty'] as num? ?? 0.0).toDouble();
+      final rate = (item['rate'] as num? ?? 0.0).toDouble();
       totalQty += qty;
       netTotal += qty * rate;
     }
@@ -1048,8 +1048,8 @@ class _PurchaseOrderFormScreenState extends State<PurchaseOrderFormScreen> with 
             itemCount: schedule.length,
             itemBuilder: (context, index) {
               final term = schedule[index];
-              final portion = (term['invoice_portion'] ?? 0.0) as double;
-              final amount = (term['payment_amount'] ?? 0.0) as double;
+              final portion = (term['invoice_portion'] as num? ?? 0.0).toDouble();
+              final amount = (term['payment_amount'] as num? ?? 0.0).toDouble();
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(16),
@@ -1141,8 +1141,8 @@ class _PurchaseOrderFormScreenState extends State<PurchaseOrderFormScreen> with 
 
   // --- Sticky Bottom Aggregation Panel ---
   Widget _buildStickyTotalsPanel() {
-    final double totalQty = (_doc['total_qty'] ?? 0.0) as double;
-    final double grandTotal = (_doc['grand_total'] ?? 0.0) as double;
+    final double totalQty = (_doc['total_qty'] as num? ?? 0.0).toDouble();
+    final double grandTotal = (_doc['grand_total'] as num? ?? 0.0).toDouble();
     final int itemLength = (_doc['items'] as List?)?.length ?? 0;
 
     return Container(
@@ -1415,7 +1415,12 @@ class _PurchaseOrderFormScreenState extends State<PurchaseOrderFormScreen> with 
     );
   }
 
-  void _showSearchDialog({required String title, required String doctype, required Function(String) onSelected}) {
+  void _showSearchDialog({
+    required String title,
+    required String doctype,
+    Map<String, dynamic>? filters,
+    required Function(String) onSelected,
+  }) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1448,6 +1453,7 @@ class _PurchaseOrderFormScreenState extends State<PurchaseOrderFormScreen> with 
               Expanded(
                 child: SearchableList(
                   doctype: doctype,
+                  filters: filters,
                   onSelected: onSelected,
                   scrollController: scrollController,
                 ),
@@ -1671,12 +1677,14 @@ class SearchableList extends StatefulWidget {
   final String doctype;
   final Function(String) onSelected;
   final ScrollController scrollController;
+  final Map<String, dynamic>? filters;
 
   const SearchableList({
     super.key,
     required this.doctype,
     required this.onSelected,
     required this.scrollController,
+    this.filters,
   });
 
   @override
@@ -1725,24 +1733,40 @@ class _SearchableListState extends State<SearchableList> {
         try {
           res = await _apiClient.get(
             'oasis_mobile.api.purchase_order.search_link',
-            params: {'doctype': widget.doctype, 'txt': query},
+            params: {
+              'doctype': widget.doctype,
+              'txt': query,
+              if (widget.filters != null) 'filters': jsonEncode(widget.filters),
+            },
           );
         } catch (_) {
           try {
             res = await _apiClient.get(
               'oasis_mobile.api.delivery_note.search_link',
-              params: {'doctype': widget.doctype, 'txt': query},
+              params: {
+                'doctype': widget.doctype,
+                'txt': query,
+                if (widget.filters != null) 'filters': jsonEncode(widget.filters),
+              },
             );
           } catch (_) {
             try {
               res = await _apiClient.get(
                 'oasis_mobile.api.sales_order.search_link',
-                params: {'doctype': widget.doctype, 'txt': query},
+                params: {
+                  'doctype': widget.doctype,
+                  'txt': query,
+                  if (widget.filters != null) 'filters': jsonEncode(widget.filters),
+                },
               );
             } catch (_) {
               res = await _apiClient.get(
                 'oasis_mobile.api.quotation.search_link',
-                params: {'doctype': widget.doctype, 'txt': query},
+                params: {
+                  'doctype': widget.doctype,
+                  'txt': query,
+                  if (widget.filters != null) 'filters': jsonEncode(widget.filters),
+                },
               );
             }
           }
@@ -1757,6 +1781,17 @@ class _SearchableListState extends State<SearchableList> {
         } else {
           results = res['results'];
         }
+      } else if (query.isNotEmpty) {
+        results = (results as List).where((item) {
+          final String name = (item['name'] ?? '').toString().toLowerCase();
+          final String val = (item['value'] ?? '').toString().toLowerCase();
+          final String label = (item['label'] ?? '').toString().toLowerCase();
+          final String companyName = (item['company_name'] ?? '').toString().toLowerCase();
+          return name.contains(query.toLowerCase()) ||
+              val.contains(query.toLowerCase()) ||
+              label.contains(query.toLowerCase()) ||
+              companyName.contains(query.toLowerCase());
+        }).toList();
       }
       
       setState(() {

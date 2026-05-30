@@ -86,7 +86,7 @@ class _MaterialRequestListScreenState extends State<MaterialRequestListScreen> {
         params['workflow_state'] = _selectedState;
       }
       if (_searchQuery.isNotEmpty) {
-        params['search_query'] = _searchQuery;
+        params['search_txt'] = _searchQuery;
       }
 
       final response = await _apiClient.get(
