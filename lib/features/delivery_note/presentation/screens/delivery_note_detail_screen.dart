@@ -7,6 +7,7 @@ import 'package:oasis/core/constants/app_colors.dart';
 import 'package:oasis/core/widgets/workflow_action_bar.dart';
 import 'package:oasis/features/delivery_note/models/delivery_note_model.dart';
 import 'package:oasis/features/sales_invoice/presentation/screens/sales_invoice_form_screen.dart';
+import 'package:oasis/core/services/role_helper.dart';
 import 'delivery_note_form_screen.dart';
 
 class DeliveryNoteDetailScreen extends StatefulWidget {
@@ -22,18 +23,32 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
   final ApiClient _apiClient = ApiClient();
   late DeliveryNoteModel _deliveryNote;
   List<String> _workflowActions = [];
+  List<String> _availableActions = [];
   bool _isLoading = false;
+  String? _userActionState;
 
   @override
   void initState() {
     super.initState();
     _deliveryNote = widget.deliveryNote;
+    _loadUserActionState();
     _fetchDetails();
   }
 
-  bool canEdit({required int docStatus, required List<String> workflowActions}) {
+  Future<void> _loadUserActionState() async {
+    final state = await RoleHelper.getActionStateFromPrefs();
+    if (mounted) {
+      setState(() {
+        _userActionState = state;
+      });
+    }
+  }
+
+  bool canEdit({required int docStatus, required List<String> workflowActions, String? workflowState}) {
     if (docStatus != 0) return false;
     if (workflowActions.isEmpty) return false;
+    final docState = workflowState ?? 'Draft';
+    if (docState != _userActionState) return false;
     return true;
   }
 
@@ -64,6 +79,7 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
         setState(() {
           final data = Map<String, dynamic>.from(body['data'] ?? {});
           _workflowActions = List<String>.from(body['workflow_actions'] ?? []);
+          _availableActions = List<String>.from(body['available_actions'] ?? []);
           _deliveryNote = DeliveryNoteModel.fromJson(data);
           _isLoading = false;
         });
@@ -247,7 +263,7 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
           style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, color: AppColors.textPrimary, fontSize: 16),
         ),
         actions: [
-          if (canEdit(docStatus: _deliveryNote.docstatus, workflowActions: _workflowActions))
+          if (canEdit(docStatus: _deliveryNote.docstatus, workflowActions: _workflowActions, workflowState: _deliveryNote.workflowState))
             IconButton(
               icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
               onPressed: () async {
@@ -490,7 +506,7 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
   }
 
   Widget _buildFloatingBottomActions() {
-    if (_deliveryNote.docstatus == 1) {
+    if (_availableActions.contains('Make Sales Invoice')) {
       return Positioned(
         bottom: 0,
         left: 0,

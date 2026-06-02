@@ -5,6 +5,7 @@ import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
 import 'package:oasis/core/widgets/workflow_action_bar.dart';
 import 'package:oasis/features/purchase_order/models/purchase_order_model.dart';
+import 'package:oasis/core/services/role_helper.dart';
 import 'purchase_order_form_screen.dart';
 
 class PurchaseOrderDetailScreen extends StatefulWidget {
@@ -21,16 +22,29 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
   PurchaseOrderModel? _purchaseOrder;
   List<String> _workflowActions = [];
   bool _isLoading = true;
+  String? _userActionState;
 
   @override
   void initState() {
     super.initState();
+    _loadUserActionState();
     _fetchDetails();
   }
 
-  bool canEdit({required int docStatus, required List<String> workflowActions}) {
+  Future<void> _loadUserActionState() async {
+    final state = await RoleHelper.getActionStateFromPrefs();
+    if (mounted) {
+      setState(() {
+        _userActionState = state;
+      });
+    }
+  }
+
+  bool canEdit({required int docStatus, required List<String> workflowActions, String? workflowState}) {
     if (docStatus != 0) return false;
     if (workflowActions.isEmpty) return false;
+    final docState = workflowState ?? 'Draft';
+    if (docState != _userActionState) return false;
     return true;
   }
 
@@ -211,7 +225,7 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
           style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, color: AppColors.textPrimary, fontSize: 16),
         ),
         actions: [
-          if (_purchaseOrder != null && canEdit(docStatus: _purchaseOrder!.docstatus, workflowActions: _workflowActions))
+          if (_purchaseOrder != null && canEdit(docStatus: _purchaseOrder!.docstatus, workflowActions: _workflowActions, workflowState: _purchaseOrder!.workflowState))
             IconButton(
               icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
               onPressed: () async {

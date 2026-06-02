@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
 import 'package:oasis/features/quotation/models/quotation_model.dart';
+import 'package:oasis/features/quotation/presentation/screens/quotation_detail_screen.dart';
 
 class QuotationFormScreen extends StatefulWidget {
   final Quotation? quotation;
@@ -681,6 +683,25 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
         errMsg = response['message']?['error'] ?? response['message']?['message'];
       }
 
+      String? _extractDocName(Map<String, dynamic> res) {
+        final msg = res['message'];
+        if (msg is Map) {
+          if (msg['data'] is Map && msg['data']['name'] != null) {
+            return msg['data']['name'].toString();
+          }
+          if (msg['name'] != null) {
+            return msg['name'].toString();
+          }
+        }
+        if (res['data'] is Map && res['data']['name'] != null) {
+          return res['data']['name'].toString();
+        }
+        if (res['name'] != null) {
+          return res['name'].toString();
+        }
+        return null;
+      }
+
       if (isSuccess) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -692,7 +713,20 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
               ),
             ),
           );
-          Navigator.pop(context, true);
+          
+          final createdName = _extractDocName(response);
+          if (createdName != null && !isEdit) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => QuotationDetailScreen(
+                  quotation: Quotation.fromJson({'name': createdName}),
+                ),
+              ),
+            );
+          } else {
+            Navigator.pop(context, true);
+          }
         }
       } else {
         throw Exception(errMsg ?? 'API response validation failed.');
@@ -1482,6 +1516,13 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
     Map<String, dynamic>? filters,
     required Function(String) onSelected,
   }) {
+    if (doctype == 'Warehouse') {
+      filters = {
+        'company': _doc['company'] ?? '',
+        'is_group': 0,
+        ...?filters,
+      };
+    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -2902,21 +2943,29 @@ class _SearchableListState extends State<SearchableList> {
   List<dynamic> _filteredItems = [];
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
-    if (widget.doctype == 'Company' || widget.doctype == 'Payment Terms Template') {
-      _onSearch('');
-    }
+    _onSearch('');
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      _onSearch(query);
+    });
   }
 
   void _onSearch(String query) async {
-    if (query.trim().isEmpty && widget.doctype != 'Company' && widget.doctype != 'Payment Terms Template') {
-      setState(() => _filteredItems = []);
-      return;
-    }
-
     setState(() => _isSearching = true);
     try {
       dynamic results;
@@ -2990,7 +3039,7 @@ class _SearchableListState extends State<SearchableList> {
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
           child: TextField(
             controller: _searchController,
-            onChanged: _onSearch,
+            onChanged: _onSearchChanged,
             autofocus: true,
             style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: AppColors.textPrimary),
             decoration: InputDecoration(
@@ -3017,7 +3066,7 @@ class _SearchableListState extends State<SearchableList> {
                   child: Padding(
                     padding: const EdgeInsets.all(32),
                     child: Text(
-                      _searchController.text.isEmpty ? 'Type to search.' : 'No records found.',
+                      'No records found.',
                       style: GoogleFonts.outfit(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
                     ),
                   ),

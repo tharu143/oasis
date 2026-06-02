@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
 import '../../models/payment_entry_model.dart';
+import 'payment_entry_detail_screen.dart';
 
 class PaymentEntryFormScreen extends StatefulWidget {
   final PaymentEntryModel? paymentEntry;
@@ -349,6 +351,25 @@ class _PaymentEntryFormScreenState extends State<PaymentEntryFormScreen> with Si
 
       setState(() => _isSaving = false);
 
+      String? _extractDocName(Map<String, dynamic> res) {
+        final msg = res['message'];
+        if (msg is Map) {
+          if (msg['data'] is Map && msg['data']['name'] != null) {
+            return msg['data']['name'].toString();
+          }
+          if (msg['name'] != null) {
+            return msg['name'].toString();
+          }
+        }
+        if (res['data'] is Map && res['data']['name'] != null) {
+          return res['data']['name'].toString();
+        }
+        if (res['name'] != null) {
+          return res['name'].toString();
+        }
+        return null;
+      }
+
       if (isSuccess) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -357,7 +378,20 @@ class _PaymentEntryFormScreenState extends State<PaymentEntryFormScreen> with Si
               backgroundColor: AppColors.approvedMD,
             ),
           );
-          Navigator.pop(context, true);
+
+          final createdName = _extractDocName(response);
+          if (createdName != null && !isEdit) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PaymentEntryDetailScreen(
+                  paymentEntry: PaymentEntryModel.fromJson({'name': createdName}),
+                ),
+              ),
+            );
+          } else {
+            Navigator.pop(context, true);
+          }
         }
       } else {
         throw Exception(errMsg ?? 'API response validation failed.');
@@ -1492,6 +1526,7 @@ class _SearchLinkSheetState extends State<_SearchLinkSheet> {
   final TextEditingController _queryController = TextEditingController();
   List<dynamic> _results = [];
   bool _searching = false;
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -1501,8 +1536,16 @@ class _SearchLinkSheetState extends State<_SearchLinkSheet> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _queryController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      _performSearch(query);
+    });
   }
 
   Future<void> _performSearch(String query) async {
@@ -1578,7 +1621,7 @@ class _SearchLinkSheetState extends State<_SearchLinkSheet> {
                 Expanded(
                   child: TextField(
                     controller: _queryController,
-                    onChanged: _performSearch,
+                    onChanged: _onSearchChanged,
                     decoration: InputDecoration(
                       hintText: 'Search...',
                       hintStyle: GoogleFonts.plusJakartaSans(color: AppColors.textLight, fontSize: 13),

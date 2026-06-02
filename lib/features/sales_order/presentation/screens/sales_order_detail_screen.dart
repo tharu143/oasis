@@ -7,6 +7,7 @@ import 'package:oasis/features/sales_order/models/sales_order_model.dart';
 import 'package:oasis/features/sales_order/presentation/screens/sales_order_form_screen.dart';
 import 'package:oasis/features/material_request/presentation/screens/material_request_form_screen.dart';
 import 'package:oasis/features/delivery_note/presentation/screens/delivery_note_form_screen.dart';
+import 'package:oasis/core/services/role_helper.dart';
 
 class SalesOrderDetailScreen extends StatefulWidget {
   final SalesOrderModel salesOrder;
@@ -24,12 +25,31 @@ class _SalesOrderDetailScreenState extends State<SalesOrderDetailScreen> {
   List<String> _workflowActions = [];
   List<String> _availableActions = [];
   bool _isLoading = false;
+  String? _userActionState;
 
   @override
   void initState() {
     super.initState();
     _salesOrder = widget.salesOrder;
+    _loadUserActionState();
     _fetchDetails();
+  }
+
+  Future<void> _loadUserActionState() async {
+    final state = await RoleHelper.getActionStateFromPrefs();
+    if (mounted) {
+      setState(() {
+        _userActionState = state;
+      });
+    }
+  }
+
+  bool canEdit({required int docStatus, required List<String> workflowActions, String? workflowState}) {
+    if (docStatus != 0) return false;
+    if (workflowActions.isEmpty) return false;
+    final docState = workflowState ?? 'Draft';
+    if (docState != _userActionState) return false;
+    return true;
   }
 
   Future<void> _fetchDetails() async {
@@ -235,7 +255,7 @@ class _SalesOrderDetailScreenState extends State<SalesOrderDetailScreen> {
         ),
       ),
       actions: [
-        if (_salesOrder.docstatus == 0)
+        if (canEdit(docStatus: _salesOrder.docstatus, workflowActions: _workflowActions, workflowState: _salesOrder.workflowState))
           IconButton(
             icon: const Icon(Icons.edit, color: Colors.white, size: 22),
             onPressed: () async {
@@ -637,19 +657,21 @@ class _SalesOrderDetailScreenState extends State<SalesOrderDetailScreen> {
           ),
         ),
       );
-      buttons.add(
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            child: _buildActionButton(
-              'MAKE DELIVERY NOTE',
-              const Color(0xFF8B5CF6),
-              Colors.white,
-              onTap: _makeDeliveryNote,
+      if (_availableActions.contains('Make Delivery Note')) {
+        buttons.add(
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: _buildActionButton(
+                'MAKE DELIVERY NOTE',
+                const Color(0xFF8B5CF6),
+                Colors.white,
+                onTap: _makeDeliveryNote,
+              ),
             ),
           ),
-        ),
-      );
+        );
+      }
     } else {
       // Document still in workflow - show the workflow action buttons
       if (state.contains('pending')) {

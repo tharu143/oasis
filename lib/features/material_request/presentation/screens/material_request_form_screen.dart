@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -5,6 +7,7 @@ import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/material_request_model.dart';
+import 'material_request_detail_screen.dart';
 
 class MaterialRequestFormScreen extends StatefulWidget {
   final MaterialRequestModel? materialRequest;
@@ -203,7 +206,19 @@ class _MaterialRequestFormScreenState extends State<MaterialRequestFormScreen> w
   }
 
   // --- Search sheets autocomplete lookups ---
-  void _openSearchSheet(String title, String doctype, Function(String, Map<String, dynamic>) onSelected) {
+  void _openSearchSheet(
+    String title,
+    String doctype,
+    Function(String, Map<String, dynamic>) onSelected, {
+    Map<String, dynamic>? filters,
+  }) {
+    if (doctype == 'Warehouse') {
+      filters = {
+        'company': _doc['company'] ?? '',
+        'is_group': 0,
+        ...?filters,
+      };
+    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -211,6 +226,7 @@ class _MaterialRequestFormScreenState extends State<MaterialRequestFormScreen> w
       builder: (context) => _SearchLinkSheet(
         title: title,
         doctype: doctype,
+        filters: filters,
         onSelected: (val, details) {
           Navigator.pop(context);
           setState(() {
@@ -309,7 +325,26 @@ class _MaterialRequestFormScreenState extends State<MaterialRequestFormScreen> w
         if (!isNew) 'name': _doc['name'],
         'data': _doc,
       };
-      await _apiClient.post(endpoint, payload);
+      final response = await _apiClient.post(endpoint, payload);
+
+      String? _extractDocName(Map<String, dynamic> res) {
+        final msg = res['message'];
+        if (msg is Map) {
+          if (msg['data'] is Map && msg['data']['name'] != null) {
+            return msg['data']['name'].toString();
+          }
+          if (msg['name'] != null) {
+            return msg['name'].toString();
+          }
+        }
+        if (res['data'] is Map && res['data']['name'] != null) {
+          return res['data']['name'].toString();
+        }
+        if (res['name'] != null) {
+          return res['name'].toString();
+        }
+        return null;
+      }
 
       setState(() => _isLoading = false);
       if (mounted) {
@@ -323,7 +358,20 @@ class _MaterialRequestFormScreenState extends State<MaterialRequestFormScreen> w
             backgroundColor: AppColors.approvedMD,
           ),
         );
-        Navigator.pop(context, true);
+
+        final createdName = _extractDocName(response);
+        if (createdName != null && isNew) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MaterialRequestDetailScreen(
+                materialRequest: MaterialRequestModel.fromJson({'name': createdName}),
+              ),
+            ),
+          );
+        } else {
+          Navigator.pop(context, true);
+        }
       }
     } catch (e) {
       setState(() => _isLoading = false);
@@ -1218,11 +1266,13 @@ class _SearchLinkSheet extends StatefulWidget {
   final String title;
   final String doctype;
   final Function(String, Map<String, dynamic>) onSelected;
+  final Map<String, dynamic>? filters;
 
   const _SearchLinkSheet({
     required this.title,
     required this.doctype,
     required this.onSelected,
+    this.filters,
   });
 
   @override
@@ -1234,6 +1284,7 @@ class _SearchLinkSheetState extends State<_SearchLinkSheet> {
   final TextEditingController _queryController = TextEditingController();
   List<dynamic> _results = [];
   bool _searching = false;
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -1243,8 +1294,16 @@ class _SearchLinkSheetState extends State<_SearchLinkSheet> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _queryController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      _performSearch(query);
+    });
   }
 
   Future<void> _performSearch(String query) async {
@@ -1255,6 +1314,7 @@ class _SearchLinkSheetState extends State<_SearchLinkSheet> {
         params: {
           'txt': query,
           'doctype': widget.doctype,
+          if (widget.filters != null) 'filters': jsonEncode(widget.filters),
         },
       );
       
@@ -1313,7 +1373,7 @@ class _SearchLinkSheetState extends State<_SearchLinkSheet> {
                 Expanded(
                   child: TextField(
                     controller: _queryController,
-                    onChanged: _performSearch,
+                    onChanged: _onSearchChanged,
                     decoration: InputDecoration(
                       hintText: 'Search active ${widget.doctype}s...',
                       hintStyle: GoogleFonts.plusJakartaSans(color: AppColors.textLight, fontSize: 13),

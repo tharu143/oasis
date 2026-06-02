@@ -1,9 +1,12 @@
+import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
 import '../../models/journal_entry_model.dart';
+import 'journal_entry_detail_screen.dart';
 
 class JournalEntryFormScreen extends StatefulWidget {
   final JournalEntryModel? journalEntry;
@@ -206,7 +209,26 @@ class _JournalEntryFormScreenState extends State<JournalEntryFormScreen> with Ti
         'data': _doc,
       };
 
-      await _apiClient.post(endpoint, payload);
+      final response = await _apiClient.post(endpoint, payload);
+
+      String? _extractDocName(Map<String, dynamic> res) {
+        final msg = res['message'];
+        if (msg is Map) {
+          if (msg['data'] is Map && msg['data']['name'] != null) {
+            return msg['data']['name'].toString();
+          }
+          if (msg['name'] != null) {
+            return msg['name'].toString();
+          }
+        }
+        if (res['data'] is Map && res['data']['name'] != null) {
+          return res['data']['name'].toString();
+        }
+        if (res['name'] != null) {
+          return res['name'].toString();
+        }
+        return null;
+      }
 
       setState(() => _isLoading = false);
       if (mounted) {
@@ -220,7 +242,20 @@ class _JournalEntryFormScreenState extends State<JournalEntryFormScreen> with Ti
             backgroundColor: AppColors.approvedMD,
           ),
         );
-        Navigator.pop(context, true);
+
+        final createdName = _extractDocName(response);
+        if (createdName != null && isNew) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => JournalEntryDetailScreen(
+                journalEntry: JournalEntryModel.fromJson({'name': createdName}),
+              ),
+            ),
+          );
+        } else {
+          Navigator.pop(context, true);
+        }
       }
     } catch (e) {
       setState(() => _isLoading = false);
@@ -1286,6 +1321,7 @@ class _SearchLinkSheetState extends State<_SearchLinkSheet> {
   final TextEditingController _queryController = TextEditingController();
   List<dynamic> _results = [];
   bool _searching = false;
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -1295,8 +1331,16 @@ class _SearchLinkSheetState extends State<_SearchLinkSheet> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _queryController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      _performSearch(query);
+    });
   }
 
   Future<void> _performSearch(String query) async {
@@ -1365,7 +1409,7 @@ class _SearchLinkSheetState extends State<_SearchLinkSheet> {
                 Expanded(
                   child: TextField(
                     controller: _queryController,
-                    onChanged: _performSearch,
+                    onChanged: _onSearchChanged,
                     decoration: InputDecoration(
                       hintText: 'Search active ${widget.doctype}s...',
                       hintStyle: GoogleFonts.plusJakartaSans(color: AppColors.textLight, fontSize: 13),

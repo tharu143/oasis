@@ -7,6 +7,7 @@ import 'package:oasis/features/quotation/models/quotation_model.dart';
 import 'package:oasis/features/quotation/presentation/screens/quotation_form_screen.dart';
 import 'package:oasis/features/sales_order/presentation/screens/sales_order_form_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:oasis/core/services/role_helper.dart';
 
 class QuotationDetailScreen extends StatefulWidget {
   final Quotation quotation;
@@ -23,14 +24,33 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
   List<dynamic> _activityFeed = [];
   List<String> _userRoles = [];
   bool _isLoading = false;
+  String? _userActionState;
 
   @override
   void initState() {
     super.initState();
     _quotation = widget.quotation;
+    _loadUserActionState();
     _fetchDetails();
     _fetchHistory();
     _loadUserRoles();
+  }
+
+  Future<void> _loadUserActionState() async {
+    final state = await RoleHelper.getActionStateFromPrefs();
+    if (mounted) {
+      setState(() {
+        _userActionState = state;
+      });
+    }
+  }
+
+  bool canEdit({required int docStatus, required List<String> workflowActions, String? workflowState}) {
+    if (docStatus != 0) return false;
+    if (workflowActions.isEmpty) return false;
+    final docState = workflowState ?? 'Draft';
+    if (docState != _userActionState) return false;
+    return true;
   }
 
   Future<void> _loadUserRoles() async {
@@ -292,7 +312,7 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
         ),
       ),
       actions: [
-        if (_quotation.docstatus == 0)
+        if (canEdit(docStatus: _quotation.docstatus, workflowActions: _quotation.workflowActions, workflowState: _quotation.workflowState))
           IconButton(
             icon: const Icon(Icons.edit, color: Colors.white, size: 22),
             onPressed: () async {

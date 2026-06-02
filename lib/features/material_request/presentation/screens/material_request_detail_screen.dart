@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
 import 'package:oasis/core/widgets/workflow_action_bar.dart';
+import 'package:oasis/core/services/role_helper.dart';
+import 'package:oasis/features/delivery_note/presentation/screens/delivery_note_form_screen.dart';
 import '../../models/material_request_model.dart';
 import 'material_request_form_screen.dart';
 
@@ -20,16 +22,30 @@ class _MaterialRequestDetailScreenState extends State<MaterialRequestDetailScree
   bool _isLoading = true;
   MaterialRequestModel? _details;
   List<String> _workflowActions = [];
+  List<String> _availableActions = [];
+  String? _userActionState;
 
   @override
   void initState() {
     super.initState();
+    _loadUserActionState();
     _fetchDetails();
   }
 
-  bool canEdit({required int docStatus, required List<String> workflowActions}) {
+  Future<void> _loadUserActionState() async {
+    final state = await RoleHelper.getActionStateFromPrefs();
+    if (mounted) {
+      setState(() {
+        _userActionState = state;
+      });
+    }
+  }
+
+  bool canEdit({required int docStatus, required List<String> workflowActions, String? workflowState}) {
     if (docStatus != 0) return false;
     if (workflowActions.isEmpty) return false;
+    final docState = workflowState ?? 'Draft';
+    if (docState != _userActionState) return false;
     return true;
   }
 
@@ -60,8 +76,10 @@ class _MaterialRequestDetailScreenState extends State<MaterialRequestDetailScree
         setState(() {
           final docData = Map<String, dynamic>.from(message['data'] ?? {});
           final List<dynamic> actions = message['workflow_actions'] ?? [];
+          final List<dynamic> avActions = message['available_actions'] ?? [];
           _details = MaterialRequestModel.fromJson(docData);
           _workflowActions = actions.map((e) => e.toString()).toList();
+          _availableActions = avActions.map((e) => e.toString()).toList();
           _isLoading = false;
         });
       } else {
@@ -211,7 +229,7 @@ class _MaterialRequestDetailScreenState extends State<MaterialRequestDetailScree
         style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, color: AppColors.textPrimary, fontSize: 16),
       ),
       actions: [
-        if (canEdit(docStatus: doc.docstatus, workflowActions: _workflowActions))
+        if (canEdit(docStatus: doc.docstatus, workflowActions: _workflowActions, workflowState: doc.workflowState))
           IconButton(
             icon: const Icon(Icons.edit_rounded, color: AppColors.primary),
             onPressed: () {
@@ -506,6 +524,67 @@ class _MaterialRequestDetailScreenState extends State<MaterialRequestDetailScree
   }
 
   Widget _buildBottomActionTransitions(MaterialRequestModel doc) {
+    final bool showMakeDeliveryNote = (doc.workflowState?.toLowerCase() == 'approved by md') ||
+                                      (doc.docstatus == 1 && _availableActions.contains('Make Delivery Note'));
+
+    if (showMakeDeliveryNote) {
+      return Container(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 34),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Container(
+                height: 52,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: InkWell(
+                  onTap: _isLoading ? null : () => _makeDeliveryNote(doc),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          'MAKE DELIVERY NOTE',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return WorkflowActionBar(
       workflowActions: _workflowActions,
       currentState: doc.workflowState ?? 'Draft',
@@ -513,5 +592,106 @@ class _MaterialRequestDetailScreenState extends State<MaterialRequestDetailScree
       isLoading: _isLoading,
       onAction: (action) => _applyWorkflowAction(action),
     );
+  }
+
+  Future<void> _makeDeliveryNote(MaterialRequestModel doc) async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await _apiClient.post(
+        'oasis_mobile.api.mapping.map_material_request_to_delivery_note',
+        {'source_name': doc.name ?? ''},
+      );
+      setState(() => _isLoading = false);
+
+      Map<String, dynamic> mappedData;
+      if (response['status'] == 'success' && response['message'] != null) {
+        mappedData = Map<String, dynamic>.from(response['message']);
+      } else {
+        throw 'API mapping returned failure';
+      }
+
+      // If backend succeeds, but items list is empty, fall back to mapping items from doc
+      final itemsList = mappedData['items'] as List?;
+      if (itemsList == null || itemsList.isEmpty) {
+        mappedData['items'] = doc.items.map((item) {
+          return {
+            'item_code': item.itemCode,
+            'item_name': item.itemName ?? item.itemCode,
+            'qty': item.qty,
+            'rate': 0.0,
+            'amount': 0.0,
+            'price_list_rate': 0.0,
+            'base_price_list_rate': 0.0,
+            'base_rate': 0.0,
+            'base_amount': 0.0,
+            'net_rate': 0.0,
+            'net_amount': 0.0,
+            'stock_qty': item.stockQty,
+            'conversion_factor': item.conversionFactor,
+            'uom': item.uom,
+            'stock_uom': item.stockUom,
+            'material_request': doc.name,
+          };
+        }).toList();
+      }
+
+      if (mounted) {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DeliveryNoteFormScreen(
+              initialData: mappedData,
+            ),
+          ),
+        );
+        if (result == true) {
+          _fetchDetails();
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ Backend mapper failed, using local client mapping: $e');
+      final Map<String, dynamic> localMappedData = {
+        'company': doc.company,
+        'customer': doc.customCustomer ?? '',
+        'custom_quote_type': 'Retail',
+        'custom_retail_quote_type': 'Supply Only',
+        'material_request': doc.name,
+        'items': doc.items.map((item) {
+          return {
+            'item_code': item.itemCode,
+            'item_name': item.itemName ?? item.itemCode,
+            'qty': item.qty,
+            'rate': 0.0,
+            'amount': 0.0,
+            'price_list_rate': 0.0,
+            'base_price_list_rate': 0.0,
+            'base_rate': 0.0,
+            'base_amount': 0.0,
+            'net_rate': 0.0,
+            'net_amount': 0.0,
+            'stock_qty': item.stockQty,
+            'conversion_factor': item.conversionFactor,
+            'uom': item.uom,
+            'stock_uom': item.stockUom,
+            'material_request': doc.name,
+          };
+        }).toList(),
+      };
+
+      setState(() => _isLoading = false);
+      if (mounted) {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DeliveryNoteFormScreen(
+              initialData: localMappedData,
+            ),
+          ),
+        );
+        if (result == true) {
+          _fetchDetails();
+        }
+      }
+    }
   }
 }

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart' as intl;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
+import 'package:oasis/core/services/role_helper.dart';
 import '../../models/sales_invoice_model.dart';
 import 'sales_invoice_form_screen.dart';
 import '../../../payment_entry/presentation/screens/payment_entry_form_screen.dart';
@@ -25,13 +26,32 @@ class _SalesInvoiceDetailScreenState extends State<SalesInvoiceDetailScreen> {
   List<String> _availableActions = [];
   List<String> _userRoles = [];
   bool _isLoading = false;
+  String? _userActionState;
 
   @override
   void initState() {
     super.initState();
     _salesInvoice = widget.salesInvoice;
+    _loadUserActionState();
     _fetchDetails();
     _loadUserRoles();
+  }
+
+  Future<void> _loadUserActionState() async {
+    final state = await RoleHelper.getActionStateFromPrefs();
+    if (mounted) {
+      setState(() {
+        _userActionState = state;
+      });
+    }
+  }
+
+  bool canEdit({required int docStatus, required List<String> workflowActions, String? workflowState}) {
+    if (docStatus != 0) return false;
+    if (workflowActions.isEmpty) return false;
+    final docState = workflowState ?? 'Draft';
+    if (docState != _userActionState) return false;
+    return true;
   }
 
   Future<void> _loadUserRoles() async {
@@ -331,7 +351,7 @@ class _SalesInvoiceDetailScreenState extends State<SalesInvoiceDetailScreen> {
           style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, color: AppColors.textPrimary, fontSize: 16),
         ),
         actions: [
-          if (_salesInvoice.docstatus == 0) ...[
+          if (canEdit(docStatus: _salesInvoice.docstatus ?? 0, workflowActions: _workflowActions, workflowState: _salesInvoice.workflowState))
             IconButton(
               icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
               onPressed: () async {
@@ -346,11 +366,11 @@ class _SalesInvoiceDetailScreenState extends State<SalesInvoiceDetailScreen> {
                 }
               },
             ),
+          if (_salesInvoice.docstatus == 0)
             IconButton(
               icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
               onPressed: _deleteInvoice,
             ),
-          ],
         ],
       ),
       body: _isLoading

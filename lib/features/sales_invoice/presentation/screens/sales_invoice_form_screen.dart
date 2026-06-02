@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -5,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
 import '../../models/sales_invoice_model.dart';
+import 'package:oasis/features/sales_invoice/presentation/screens/sales_invoice_detail_screen.dart';
 
 class SalesInvoiceFormScreen extends StatefulWidget {
   final SalesInvoiceModel? salesInvoice;
@@ -346,6 +349,29 @@ class _SalesInvoiceFormScreenState extends State<SalesInvoiceFormScreen> with Ti
         response = await _apiClient.post('frappe.client.save', payload);
       }
 
+      String? _extractDocName(Map<String, dynamic> res) {
+        final msg = res['message'];
+        if (msg is Map) {
+          if (msg['data'] is Map && msg['data']['name'] != null) {
+            return msg['data']['name'].toString();
+          }
+          if (msg['name'] != null) {
+            return msg['name'].toString();
+          }
+        }
+        if (res['data'] is Map && res['data']['name'] != null) {
+          return res['data']['name'].toString();
+        }
+        if (res['name'] != null) {
+          return res['name'].toString();
+        }
+        // Fallback for frappe.client.save return structure: it puts document dict directly in response['docs'][0] or response['docs'] or response['data']
+        if (res['docs'] is List && (res['docs'] as List).isNotEmpty && res['docs'][0] is Map) {
+          return res['docs'][0]['name']?.toString();
+        }
+        return null;
+      }
+
       final status = response['status'] ?? response['message']?['status'] ?? response['message'];
       if (status == 'success' || response['message'] == 'success' || response['data'] != null) {
         if (mounted) {
@@ -355,7 +381,20 @@ class _SalesInvoiceFormScreenState extends State<SalesInvoiceFormScreen> with Ti
               content: Text(isEdit ? 'Sales Invoice updated successfully!' : 'Sales Invoice created successfully!'),
             ),
           );
-          Navigator.pop(context, true);
+          
+          final createdName = _extractDocName(response);
+          if (createdName != null && !isEdit) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => SalesInvoiceDetailScreen(
+                  salesInvoice: SalesInvoiceModel.fromJson({'name': createdName}),
+                ),
+              ),
+            );
+          } else {
+            Navigator.pop(context, true);
+          }
         }
       } else {
         throw Exception(response['message']?['error'] ?? 'API response validation failed.');
@@ -1407,7 +1446,19 @@ class _SalesInvoiceFormScreenState extends State<SalesInvoiceFormScreen> with Ti
     );
   }
 
-  void _showSearchDialog({required String title, required String doctype, required ValueChanged<String> onSelected}) {
+  void _showSearchDialog({
+    required String title,
+    required String doctype,
+    Map<String, dynamic>? filters,
+    required ValueChanged<String> onSelected,
+  }) {
+    if (doctype == 'Warehouse') {
+      filters = {
+        'company': _doc['company'] ?? '',
+        'is_group': 0,
+        ...?filters,
+      };
+    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1415,6 +1466,7 @@ class _SalesInvoiceFormScreenState extends State<SalesInvoiceFormScreen> with Ti
       builder: (context) => _SearchLinkSheet(
         title: title,
         doctype: doctype,
+        filters: filters,
         onSelected: (val) {
           Navigator.pop(context);
           onSelected(val);
@@ -1428,8 +1480,14 @@ class _SearchLinkSheet extends StatefulWidget {
   final String title;
   final String doctype;
   final ValueChanged<String> onSelected;
+  final Map<String, dynamic>? filters;
 
-  const _SearchLinkSheet({required this.title, required this.doctype, required this.onSelected});
+  const _SearchLinkSheet({
+    required this.title,
+    required this.doctype,
+    required this.onSelected,
+    this.filters,
+  });
 
   @override
   State<_SearchLinkSheet> createState() => _SearchLinkSheetState();
@@ -1440,11 +1498,26 @@ class _SearchLinkSheetState extends State<_SearchLinkSheet> {
   final List<String> _results = [];
   bool _isLoading = false;
   String _query = '';
+  Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
     _fetchList();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onQueryChanged(String val) {
+    _query = val;
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      _fetchList();
+    });
   }
 
   Future<void> _fetchList() async {
@@ -1454,6 +1527,7 @@ class _SearchLinkSheetState extends State<_SearchLinkSheet> {
         'doctype': widget.doctype,
         'txt': _query,
         'query': _query,
+        if (widget.filters != null) 'filters': jsonEncode(widget.filters),
       };
       dynamic res;
       try {
@@ -1528,10 +1602,7 @@ class _SearchLinkSheetState extends State<_SearchLinkSheet> {
           Text(widget.title, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 12),
           TextField(
-            onChanged: (val) {
-              _query = val;
-              _fetchList();
-            },
+            onChanged: _onQueryChanged,
             decoration: InputDecoration(
               hintText: 'Search...',
               prefixIcon: const Icon(Icons.search, size: 20),
