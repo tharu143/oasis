@@ -51,5 +51,13 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Oasis ERP needs camera access to attach invoice photos and proof documents.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Oasis ERP needs photo library access to attach images as proof documents.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Oasis ERP needs permission to save captured photos.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Oasis ERP needs microphone access when capturing video.</string>
 </dict>
 </plist>

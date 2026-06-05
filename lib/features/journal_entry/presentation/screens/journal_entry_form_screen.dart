@@ -1,8 +1,11 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
 import '../../models/journal_entry_model.dart';
@@ -33,6 +36,10 @@ class _JournalEntryFormScreenState extends State<JournalEntryFormScreen> with Ti
   late TextEditingController _preparedByController;
   late TextEditingController _verifiedByController;
   late TextEditingController _approvedByController;
+
+  // Attachment State
+  final List<Map<String, dynamic>> _attachments = []; // {name, path, url, isUploading}
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -282,6 +289,13 @@ class _JournalEntryFormScreenState extends State<JournalEntryFormScreen> with Ti
     if (diff.abs() > 0.001) {
       return 'Unbalanced entries! Debits and Credits must balance to 0 (Difference is ${diff.toStringAsFixed(2)}).';
     }
+    // Attachment is mandatory — at least one uploaded proof required
+    final hasUploadedAttachment = _attachments.any((a) => a['isUploading'] != true && a['url'] != null);
+    if (!hasUploadedAttachment) {
+      // Navigate to Proof tab so the user sees where to add it
+      _tabController.animateTo(3);
+      return 'Attachment / Invoice Proof is mandatory. Please upload at least one file on Tab 4 (Proof).';
+    }
     return null;
   }
 
@@ -506,17 +520,22 @@ class _JournalEntryFormScreenState extends State<JournalEntryFormScreen> with Ti
                 'Ledger Lines (${accounts.length})',
                 style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.textPrimary),
               ),
-              ElevatedButton.icon(
-                onPressed: () => _openAccountEntrySheet(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                icon: const Icon(Icons.add_rounded, size: 16),
-                label: Text(
-                  'Add',
-                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold),
+              GestureDetector(
+                onTap: () => _openAccountEntrySheet(),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.add_rounded, size: 16, color: Colors.white),
+                      const SizedBox(width: 6),
+                      Text('Add', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 13)),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -525,9 +544,33 @@ class _JournalEntryFormScreenState extends State<JournalEntryFormScreen> with Ti
           Expanded(
             child: accounts.isEmpty
                 ? Center(
-                    child: Text(
-                      'No ledger lines added yet. Click "Add" above.',
-                      style: GoogleFonts.plusJakartaSans(color: AppColors.textLight, fontSize: 14),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'No ledger lines added yet.',
+                          style: GoogleFonts.plusJakartaSans(color: AppColors.textLight, fontSize: 14),
+                        ),
+                        const SizedBox(height: 16),
+                        GestureDetector(
+                          onTap: () => _openAccountEntrySheet(),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.add_rounded, color: Colors.white, size: 18),
+                                const SizedBox(width: 8),
+                                Text('Add Ledger Line', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: Colors.white)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   )
                 : ListView.builder(
@@ -775,64 +818,324 @@ class _JournalEntryFormScreenState extends State<JournalEntryFormScreen> with Ti
     );
   }
 
+  // --- Attachment Helpers ---
+
+  void _showAttachmentPicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)),
+            ),
+            const SizedBox(height: 20),
+            Text('Add Attachment', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 18, color: AppColors.textPrimary)),
+            const SizedBox(height: 8),
+            Text('Choose how to attach your proof', style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AppColors.textSecondary)),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(child: _attachOptionTile(
+                  icon: Icons.camera_alt_rounded,
+                  color: const Color(0xFF6366F1),
+                  label: 'Camera',
+                  onTap: () { Navigator.pop(context); _pickImage(ImageSource.camera); },
+                )),
+                const SizedBox(width: 12),
+                Expanded(child: _attachOptionTile(
+                  icon: Icons.photo_library_rounded,
+                  color: const Color(0xFF10B981),
+                  label: 'Gallery',
+                  onTap: () { Navigator.pop(context); _pickImage(ImageSource.gallery); },
+                )),
+                const SizedBox(width: 12),
+                Expanded(child: _attachOptionTile(
+                  icon: Icons.folder_open_rounded,
+                  color: const Color(0xFFF59E0B),
+                  label: 'Files',
+                  onTap: () { Navigator.pop(context); _pickFile(); },
+                )),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _attachOptionTile({required IconData icon, required Color color, required String label, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Column(
+          children: [
+            CircleAvatar(
+              radius: 26,
+              backgroundColor: color.withOpacity(0.15),
+              child: Icon(icon, color: color, size: 26),
+            ),
+            const SizedBox(height: 10),
+            Text(label, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.textPrimary)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final picked = await _imagePicker.pickImage(source: source, imageQuality: 85);
+      if (picked == null) return;
+      await _uploadAttachment(picked.path, picked.name);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not pick image: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: false,
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg'],
+      );
+      if (result == null || result.files.isEmpty) return;
+      final f = result.files.first;
+      if (f.path == null) return;
+      await _uploadAttachment(f.path!, f.name);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not pick file: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
+  }
+
+  Future<void> _uploadAttachment(String filePath, String fileName) async {
+    // Add as "uploading" placeholder
+    final placeholder = {'name': fileName, 'path': filePath, 'url': null, 'isUploading': true};
+    setState(() => _attachments.add(placeholder));
+
+    final docname = _doc['name']?.toString();
+
+    try {
+      final resp = await _apiClient.uploadFile(
+        filePath: filePath,
+        fileName: fileName,
+        doctype: 'Journal Entry',
+        docname: docname,
+        isPrivate: false,
+      );
+      final fileUrl = (resp['message'] is Map ? resp['message']['file_url'] : null)
+          ?? resp['file_url']
+          ?? fileName;
+      setState(() {
+        final idx = _attachments.indexOf(placeholder);
+        if (idx != -1) _attachments[idx] = {'name': fileName, 'path': filePath, 'url': fileUrl, 'isUploading': false};
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('"$fileName" uploaded ✓'), backgroundColor: AppColors.approvedMD),
+        );
+      }
+    } catch (e) {
+      setState(() => _attachments.remove(placeholder));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Upload failed: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
+  }
+
   Widget _buildProofAndRemarksTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
-      child: Card(
-        color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        elevation: 0,
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Attachment / Invoice Proof',
-                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 30),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border, style: BorderStyle.solid),
-                ),
-                child: Column(
-                  children: [
-                    const Icon(Icons.cloud_upload_outlined, size: 40, color: AppColors.textLight),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Tap to attach files or photos',
-                      style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Remarks',
-                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _remarksController,
-                maxLines: 4,
-                decoration: InputDecoration(
-                  hintText: 'Enter internal notes or entry reason...',
-                  filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: AppColors.border),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Attachment Card ──
+          Card(
+            color: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            elevation: 0,
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Attachments / Invoice Proof',
+                        style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.textPrimary),
+                      ),
+                      if (_attachments.isNotEmpty)
+                        Text(
+                          '${_attachments.length} file(s)',
+                          style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: 16),
+
+                  // Upload Zone – tap to open picker
+                  GestureDetector(
+                    onTap: _showAttachmentPicker,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 28),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F4FF),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.35), width: 1.5),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(Icons.cloud_upload_outlined, size: 42, color: const Color(0xFF6366F1).withOpacity(0.7)),
+                          const SizedBox(height: 10),
+                          Text(
+                            'Tap to attach',
+                            style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: const Color(0xFF6366F1)),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Camera  •  Gallery  •  Files',
+                            style: GoogleFonts.plusJakartaSans(fontSize: 11, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Attached files list
+                  if (_attachments.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    ...List.generate(_attachments.length, (i) {
+                      final att = _attachments[i];
+                      final isImg = att['name'].toString().toLowerCase().endsWith('.jpg')
+                          || att['name'].toString().toLowerCase().endsWith('.jpeg')
+                          || att['name'].toString().toLowerCase().endsWith('.png');
+                      final isUploading = att['isUploading'] == true;
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Row(
+                          children: [
+                            // Thumbnail or icon
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: isImg && att['path'] != null
+                                  ? Image.file(File(att['path']), width: 44, height: 44, fit: BoxFit.cover)
+                                  : Container(
+                                      width: 44, height: 44,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFEEF2FF),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(Icons.insert_drive_file_rounded, color: Color(0xFF6366F1), size: 24),
+                                    ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    att['name'],
+                                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.textPrimary),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    isUploading ? 'Uploading…' : 'Uploaded ✓',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11,
+                                      color: isUploading ? AppColors.textSecondary : AppColors.approvedMD,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (isUploading)
+                              const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                            else
+                              IconButton(
+                                icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.textLight),
+                                onPressed: () => setState(() => _attachments.removeAt(i)),
+                              ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+          const SizedBox(height: 16),
+
+          // ── Remarks Card ──
+          Card(
+            color: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            elevation: 0,
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Remarks',
+                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.textPrimary),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _remarksController,
+                    maxLines: 4,
+                    decoration: InputDecoration(
+                      hintText: 'Enter internal notes or entry reason...',
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -980,6 +1283,7 @@ class _JournalEntryFormScreenState extends State<JournalEntryFormScreen> with Ti
                 foregroundColor: AppColors.textPrimary,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                minimumSize: const Size(64, 56),
                 elevation: 0,
               ),
               child: const Icon(Icons.arrow_back_rounded),

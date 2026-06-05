@@ -5,6 +5,7 @@ import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
 import 'sales_invoice_list_screen.dart';
 import 'sales_invoice_form_screen.dart';
+import 'package:oasis/core/services/role_helper.dart';
 
 class SalesInvoiceDashboardScreen extends StatefulWidget {
   const SalesInvoiceDashboardScreen({super.key});
@@ -17,6 +18,7 @@ class _SalesInvoiceDashboardScreenState extends State<SalesInvoiceDashboardScree
   bool _isLoading = true;
   Map<String, dynamic> _dashboardData = {};
   String _userName = 'Team';
+  RoleInfo? _roleInfo;
   final ApiClient _apiClient = ApiClient();
 
   @override
@@ -28,11 +30,13 @@ class _SalesInvoiceDashboardScreenState extends State<SalesInvoiceDashboardScree
 
   Future<void> _loadUserInfo() async {
     final prefs = await SharedPreferences.getInstance();
+    final roleInfo = await RoleHelper.getRoleInfoFromPrefs();
     setState(() {
       _userName = prefs.getString('full_name') ?? 'Team';
       if (_userName.contains(' ')) {
         _userName = _userName.split(' ')[0];
       }
+      _roleInfo = roleInfo;
     });
   }
 
@@ -360,10 +364,16 @@ class _SalesInvoiceDashboardScreenState extends State<SalesInvoiceDashboardScree
   }
 
   Widget _buildActionNeededCard() {
-    final int actionCount = _dashboardData['action_required'] ?? 0;
+    final roleInfo = _roleInfo;
+    final String filterState = roleInfo?.actionState ?? 'Draft';
+    final int actionCount = _dashboardData['data']?[filterState] ?? 0;
     if (actionCount == 0) return const SizedBox.shrink();
 
-    final bool hasWorkflow = _dashboardData['has_workflow'] ?? false;
+    final String actionDesc = RoleHelper.getActionDescription(
+      roleInfo?.roles ?? [],
+      actionCount,
+      'invoices',
+    );
 
     return GestureDetector(
       onTap: () {
@@ -371,7 +381,7 @@ class _SalesInvoiceDashboardScreenState extends State<SalesInvoiceDashboardScree
           context,
           MaterialPageRoute(
             builder: (context) => SalesInvoiceListScreen(
-              filterStatus: hasWorkflow ? 'Pending' : 'Overdue',
+              filterStatus: filterState,
             ),
           ),
         );
@@ -420,9 +430,7 @@ class _SalesInvoiceDashboardScreenState extends State<SalesInvoiceDashboardScree
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    hasWorkflow
-                        ? 'You have $actionCount invoices pending review'
-                        : 'You have $actionCount overdue invoices',
+                    actionDesc,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,

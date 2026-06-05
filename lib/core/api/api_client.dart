@@ -74,4 +74,46 @@ class ApiClient {
       throw Exception('Failed to load data: ${response.statusCode}');
     }
   }
+
+  /// Upload a file to Frappe's /api/method/upload_file
+  /// Attaches to the given [doctype]/[docname] if provided.
+  Future<Map<String, dynamic>> uploadFile({
+    required String filePath,
+    required String fileName,
+    String? doctype,
+    String? docname,
+    bool isPrivate = true,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final serverUrl = prefs.getString('serverUrl') ?? defaultServerUrl;
+    final sid = prefs.getString('sid');
+
+    final url = Uri.parse('$serverUrl/api/method/upload_file');
+
+    debugPrint('🚀 [UPLOAD] $url — $fileName for $doctype/$docname');
+
+    final request = http.MultipartRequest('POST', url);
+    request.headers['Accept'] = 'application/json';
+    if (sid != null) {
+      request.headers['Cookie'] = 'sid=$sid';
+    }
+    if (doctype != null) request.fields['doctype'] = doctype;
+    if (docname != null) request.fields['docname'] = docname;
+    request.fields['is_private'] = isPrivate ? '1' : '0';
+    request.fields['folder'] = 'Home/Attachments';
+
+    request.files.add(await http.MultipartFile.fromPath('file', filePath, filename: fileName));
+
+    final streamed = await request.send();
+    final responseBody = await streamed.stream.bytesToString();
+
+    debugPrint('📥 [Upload Response ${streamed.statusCode}] $url');
+    debugPrint('📄 Data: $responseBody');
+
+    if (streamed.statusCode == 200) {
+      return jsonDecode(responseBody);
+    } else {
+      throw Exception('Upload failed: ${streamed.statusCode} - $responseBody');
+    }
+  }
 }

@@ -906,22 +906,53 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
         {'source_name': _quotation.name},
       );
       setState(() => _isLoading = false);
-      if (response['message'] != null) {
-        if (mounted) {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => SalesOrderFormScreen(
-                initialData: Map<String, dynamic>.from(response['message']),
-              ),
-            ),
-          );
-          if (result == true) {
-            _fetchDetails();
+      Map<String, dynamic>? mappedData;
+      String? errorMessage;
+      
+      if (response is Map) {
+        final message = response['message'];
+        if (message is Map) {
+          if (message['status'] == 'error') {
+            errorMessage = message['message']?.toString();
+          } else if (message['status'] == 'success') {
+            final d = message['data'];
+            if (d is Map) {
+              mappedData = Map<String, dynamic>.from(d);
+            }
+          } else {
+            mappedData = Map<String, dynamic>.from(message);
           }
+        } else if (response['status'] == 'error') {
+          errorMessage = response['message']?.toString();
+        } else if (response['status'] == 'success') {
+          final d = response['data'];
+          if (d is Map) {
+            mappedData = Map<String, dynamic>.from(d);
+          }
+        } else if (response['data'] is Map) {
+          mappedData = Map<String, dynamic>.from(response['data']);
         }
-      } else {
+      }
+      
+      if (errorMessage != null) {
+        throw errorMessage;
+      }
+      if (mappedData == null) {
         throw 'Failed to map quotation to sales order';
+      }
+
+      if (mounted) {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SalesOrderFormScreen(
+              initialData: mappedData,
+            ),
+          ),
+        );
+        if (result == true) {
+          _fetchDetails();
+        }
       }
     } catch (e) {
       setState(() => _isLoading = false);

@@ -529,40 +529,68 @@ class _SalesOrderDetailScreenState extends State<SalesOrderDetailScreen> {
         {'source_name': _salesOrder.name ?? ''},
       );
       setState(() => _isLoading = false);
-      if (response['message'] != null) {
-        if (mounted) {
-          final mappedData = Map<String, dynamic>.from(response['message']);
-          final itemsList = mappedData['items'] as List?;
-          if (itemsList == null || itemsList.isEmpty) {
-            mappedData['items'] = _salesOrder.items.map((soItem) {
-              return {
-                'item_code': soItem.itemCode,
-                'item_name': soItem.itemName ?? soItem.itemCode,
-                'qty': soItem.qty,
-                'uom': soItem.uom,
-                'rate': soItem.rate,
-                'amount': soItem.amount ?? (soItem.qty * soItem.rate),
-                'conversion_factor': 1.0,
-                'stock_uom': soItem.uom,
-                'stock_qty': soItem.qty,
-              };
-            }).toList();
+      Map<String, dynamic>? mappedData;
+      String? errorMessage;
+      
+      final message = response['message'];
+      if (message is Map) {
+        if (message['status'] == 'error') {
+          errorMessage = message['message']?.toString();
+        } else if (message['status'] == 'success') {
+          final d = message['data'];
+          if (d is Map) {
+            mappedData = Map<String, dynamic>.from(d);
           }
-
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => MaterialRequestFormScreen(
-                initialData: mappedData,
-              ),
-            ),
-          );
-          if (result == true) {
-            _fetchDetails();
-          }
+        } else {
+          mappedData = Map<String, dynamic>.from(message);
         }
-      } else {
+      } else if (response['status'] == 'error') {
+        errorMessage = response['message']?.toString();
+      } else if (response['status'] == 'success') {
+        final d = response['data'];
+        if (d is Map) {
+          mappedData = Map<String, dynamic>.from(d);
+        }
+      } else if (response['data'] is Map) {
+        mappedData = Map<String, dynamic>.from(response['data']);
+      }
+      
+      if (errorMessage != null) {
+        throw errorMessage;
+      }
+      if (mappedData == null) {
         throw 'Failed to map sales order to material request';
+      }
+
+      if (mounted) {
+        final itemsList = mappedData['items'] as List?;
+        if (itemsList == null || itemsList.isEmpty) {
+          mappedData['items'] = _salesOrder.items.map((soItem) {
+            return {
+              'item_code': soItem.itemCode,
+              'item_name': soItem.itemName ?? soItem.itemCode,
+              'qty': soItem.qty,
+              'uom': soItem.uom,
+              'rate': soItem.rate,
+              'amount': soItem.amount ?? (soItem.qty * soItem.rate),
+              'conversion_factor': 1.0,
+              'stock_uom': soItem.uom,
+              'stock_qty': soItem.qty,
+            };
+          }).toList();
+        }
+
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MaterialRequestFormScreen(
+              initialData: mappedData,
+            ),
+          ),
+        );
+        if (result == true) {
+          _fetchDetails();
+        }
       }
     } catch (e) {
       setState(() => _isLoading = false);
@@ -582,48 +610,76 @@ class _SalesOrderDetailScreenState extends State<SalesOrderDetailScreen> {
         {'source_name': _salesOrder.name ?? ''},
       );
       setState(() => _isLoading = false);
-      if (response['message'] != null) {
-        if (mounted) {
-          final mappedData = Map<String, dynamic>.from(response['message']);
-          final itemsList = mappedData['items'] as List?;
-          if (itemsList == null || itemsList.isEmpty) {
-            mappedData['items'] = _salesOrder.items.map((soItem) {
-              return {
-                'item_code': soItem.itemCode,
-                'item_name': soItem.itemName ?? soItem.itemCode,
-                'qty': soItem.qty,
-                'rate': soItem.rate,
-                'amount': soItem.amount ?? (soItem.qty * soItem.rate),
-                'price_list_rate': soItem.rate,
-                'base_price_list_rate': soItem.rate,
-                'base_rate': soItem.rate,
-                'base_amount': soItem.amount ?? (soItem.qty * soItem.rate),
-                'discount_percentage': 0.0,
-                'discount_amount': 0.0,
-                'net_rate': soItem.rate,
-                'net_amount': soItem.amount ?? (soItem.qty * soItem.rate),
-                'stock_qty': soItem.qty,
-                'conversion_factor': 1.0,
-                'uom': soItem.uom,
-                'stock_uom': soItem.uom,
-              };
-            }).toList();
+      Map<String, dynamic>? mappedData;
+      String? errorMessage;
+      
+      final message = response['message'];
+      if (message is Map) {
+        if (message['status'] == 'error') {
+          errorMessage = message['message']?.toString();
+        } else if (message['status'] == 'success') {
+          final d = message['data'];
+          if (d is Map) {
+            mappedData = Map<String, dynamic>.from(d);
           }
-
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => DeliveryNoteFormScreen(
-                initialData: mappedData,
-              ),
-            ),
-          );
-          if (result == true) {
-            _fetchDetails();
-          }
+        } else {
+          mappedData = Map<String, dynamic>.from(message);
         }
-      } else {
+      } else if (response['status'] == 'error') {
+        errorMessage = response['message']?.toString();
+      } else if (response['status'] == 'success') {
+        final d = response['data'];
+        if (d is Map) {
+          mappedData = Map<String, dynamic>.from(d);
+        }
+      } else if (response['data'] is Map) {
+        mappedData = Map<String, dynamic>.from(response['data']);
+      }
+      
+      if (errorMessage != null) {
+        throw errorMessage;
+      }
+      if (mappedData == null) {
         throw 'Failed to map sales order to delivery note';
+      }
+
+      if (mounted) {
+        final itemsList = mappedData['items'] as List?;
+        if (itemsList == null || itemsList.isEmpty) {
+          mappedData['items'] = _salesOrder.items.map((soItem) {
+            return {
+              'item_code': soItem.itemCode,
+              'item_name': soItem.itemName ?? soItem.itemCode,
+              'qty': soItem.qty,
+              'rate': soItem.rate,
+              'amount': soItem.amount ?? (soItem.qty * soItem.rate),
+              'price_list_rate': soItem.rate,
+              'base_price_list_rate': soItem.rate,
+              'base_rate': soItem.rate,
+              'base_amount': soItem.amount ?? (soItem.qty * soItem.rate),
+              'discount_percentage': 0.0,
+              'discount_amount': 0.0,
+              'net_rate': soItem.rate,
+              'net_amount': soItem.amount ?? (soItem.qty * soItem.rate),
+              'stock_qty': soItem.qty,
+              'conversion_factor': 1.0,
+              'uom': soItem.uom,
+              'stock_uom': soItem.uom,
+            };
+          }).toList();
+        }
+
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DeliveryNoteFormScreen(
+              initialData: mappedData,
+            ),
+          ),
+        );
+        if (result == true) {
+          _fetchDetails();
+        }
       }
     } catch (e) {
       setState(() => _isLoading = false);
@@ -657,21 +713,7 @@ class _SalesOrderDetailScreenState extends State<SalesOrderDetailScreen> {
           ),
         ),
       );
-      if (_availableActions.contains('Make Delivery Note')) {
-        buttons.add(
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: _buildActionButton(
-                'MAKE DELIVERY NOTE',
-                const Color(0xFF8B5CF6),
-                Colors.white,
-                onTap: _makeDeliveryNote,
-              ),
-            ),
-          ),
-        );
-      }
+
     } else {
       // Document still in workflow - show the workflow action buttons
       if (state.contains('pending')) {

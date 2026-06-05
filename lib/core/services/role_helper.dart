@@ -61,20 +61,27 @@ class RoleHelper {
 
   static bool _isOasisMgr(List<String> roles) {
     return roles.any((r) {
-      final l = r.toLowerCase();
+      final l = r.toLowerCase().trim();
       return l == 'oasis mgr' ||
           l == 'oasis manager' ||
-          l.contains('oasis') && l.contains('mgr');
+          l == 'md' ||
+          l == 'managing director' ||
+          (l.contains('oasis') && (l.contains('mgr') || l.contains('manager')));
     });
   }
 
   static bool _isAccounts(List<String> roles) {
-    // Only pure accounts roles — NOT sales/purchase managers who also have accounts
-    final hasAccountsRole = roles.any((r) {
+    // Accounts Manager/User always takes priority — even if they also have Sales/Purchase roles.
+    return roles.any((r) {
       final l = r.toLowerCase();
       return l == 'accounts user' || l == 'accounts manager';
     });
-    // If the user ALSO has a Sales/Purchase role, Sales/Purchase takes priority
+  }
+
+  /// True only when the user has Sales/Purchase roles but NO accounts role.
+  /// These users see Draft counts.
+  static bool isSalesOnly(List<String> roles) {
+    final hasAccountsRole = _isAccounts(roles);
     final hasSalesPurchaseRole = roles.any((r) {
       final l = r.toLowerCase();
       return l == 'sales user' ||
@@ -82,8 +89,7 @@ class RoleHelper {
           l == 'purchase user' ||
           l == 'purchase manager';
     });
-    // Accounts role only applies if they don't have a Sales/Purchase role
-    return hasAccountsRole && !hasSalesPurchaseRole;
+    return hasSalesPurchaseRole && !hasAccountsRole;
   }
 
   /// Load roles from SharedPreferences and return the action state.

@@ -30,6 +30,7 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
   late TextEditingController _preparedByController;
   late TextEditingController _verifiedByController;
   late TextEditingController _approvedByController;
+  late TextEditingController _specialDiscountController;
 
   // Animation Controllers for recalculation bounce
   late AnimationController _totalsAnimController;
@@ -183,11 +184,13 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
     _preparedByController = TextEditingController(text: _doc['custom_prepared_by']);
     _verifiedByController = TextEditingController(text: _doc['custom_verified_by']);
     _approvedByController = TextEditingController(text: _doc['custom_approved_by']);
+    _specialDiscountController = TextEditingController(text: (_doc['discount_amount'] ?? 0.0).toString());
 
     _customerNameController.addListener(() => _doc['customer_name'] = _customerNameController.text);
     _preparedByController.addListener(() => _doc['custom_prepared_by'] = _preparedByController.text);
     _verifiedByController.addListener(() => _doc['custom_verified_by'] = _verifiedByController.text);
     _approvedByController.addListener(() => _doc['custom_approved_by'] = _approvedByController.text);
+    _specialDiscountController.addListener(_recalculateTotals);
   }
 
   @override
@@ -196,6 +199,7 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
     _preparedByController.dispose();
     _verifiedByController.dispose();
     _approvedByController.dispose();
+    _specialDiscountController.dispose();
     _totalsAnimController.dispose();
     super.dispose();
   }
@@ -209,14 +213,22 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
     for (var item in itemsList) {
       final qty = (item['qty'] as num? ?? 0.0).toDouble();
       final rate = (item['rate'] as num? ?? 0.0).toDouble();
+      final discountAmount = (item['discount_amount'] as num? ?? 0.0).toDouble();
+      final netRate = rate - discountAmount;
+      item['net_rate'] = netRate;
+      item['amount'] = qty * netRate;
       totalQty += qty;
-      netTotal += qty * rate;
+      netTotal += qty * netRate;
     }
+
+    final discountAmount = double.tryParse(_specialDiscountController.text) ?? 0.0;
 
     setState(() {
       _doc['total_qty'] = totalQty;
       _doc['net_total'] = netTotal;
-      _doc['grand_total'] = netTotal;
+      _doc['discount_amount'] = discountAmount;
+      _doc['apply_discount_on'] = 'Grand Total';
+      _doc['grand_total'] = netTotal - discountAmount;
     });
 
     _totalsAnimController.forward(from: 0.0);
@@ -808,11 +820,20 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
             'conversion_factor': 1.0,
             'stock_uom': 'Nos',
             'stock_qty': 1.0,
+            'discount_percentage': 0.0,
+            'discount_amount': 0.0,
+            'net_rate': 0.0,
+            'net_amount': 0.0,
           };
 
     final qtyController = TextEditingController(text: localItem['qty']?.toString());
     final rateController = TextEditingController(text: localItem['rate']?.toString());
     final conversionController = TextEditingController(text: localItem['conversion_factor']?.toString());
+    final discountPercentController = TextEditingController(text: localItem['discount_percentage']?.toString());
+    final discountAmountController = TextEditingController(text: localItem['discount_amount']?.toString());
+    final discountPercentFocusNode = FocusNode();
+    final discountAmountFocusNode = FocusNode();
+    final bool isDraft = widget.deliveryNote == null || widget.deliveryNote!.docstatus == 0;
 
     showModalBottomSheet(
       context: context,
@@ -824,11 +845,35 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
             final double rate = double.tryParse(rateController.text) ?? 0.0;
             final double qty = double.tryParse(qtyController.text) ?? 1.0;
             final double conversion = double.tryParse(conversionController.text) ?? 1.0;
+            
+            double discountPercent = 0.0;
+            double discountAmount = 0.0;
+
+            if (discountAmountFocusNode.hasFocus) {
+              discountAmount = double.tryParse(discountAmountController.text) ?? 0.0;
+              if (rate > 0) {
+                discountPercent = (discountAmount / rate) * 100;
+                discountPercentController.text = discountPercent.toStringAsFixed(2);
+              }
+            } else {
+              discountPercent = double.tryParse(discountPercentController.text) ?? 0.0;
+              discountAmount = rate * (discountPercent / 100);
+              if (discountPercentFocusNode.hasFocus || rateController.text.isNotEmpty) {
+                discountAmountController.text = discountAmount.toStringAsFixed(2);
+              }
+            }
+
+            final double netRate = rate - discountAmount;
+            final double amount = qty * netRate;
+
             setSheetState(() {
               localItem['rate'] = rate;
               localItem['qty'] = qty;
               localItem['conversion_factor'] = conversion;
-              localItem['amount'] = qty * rate;
+              localItem['discount_percentage'] = discountPercent;
+              localItem['discount_amount'] = discountAmount;
+              localItem['net_rate'] = netRate;
+              localItem['amount'] = amount;
               localItem['stock_qty'] = qty * conversion;
             });
           }
@@ -848,7 +893,7 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
                 controller: sheetScrollController,
                 physics: const BouncingScrollPhysics(),
                 children: [
-                  Center(
+                   Center(
                     child: Container(
                       width: 45,
                       height: 5,
@@ -922,6 +967,7 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
                     isMandatory: true,
                     child: TextFormField(
                       controller: qtyController,
+                      readOnly: !isDraft,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: AppColors.textPrimary, fontSize: 14),
                       decoration: _getInputDecoration(hintText: 'e.g. 1.0'),
@@ -934,6 +980,7 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
                     isMandatory: true,
                     child: TextFormField(
                       controller: conversionController,
+                      readOnly: !isDraft,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: AppColors.textPrimary, fontSize: 14),
                       decoration: _getInputDecoration(hintText: 'e.g. 1.0'),
@@ -946,11 +993,48 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
                     isMandatory: true,
                     child: TextFormField(
                       controller: rateController,
+                      readOnly: !isDraft,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: AppColors.textPrimary, fontSize: 14),
                       decoration: _getInputDecoration(hintText: 'e.g. 120.00'),
                       onChanged: (_) => calculateAmount(),
                     ),
+                  ),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildFieldContainer(
+                          label: 'DISCOUNT (%)',
+                          isMandatory: false,
+                          child: TextFormField(
+                            controller: discountPercentController,
+                            focusNode: discountPercentFocusNode,
+                            readOnly: !isDraft,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: AppColors.textPrimary, fontSize: 14),
+                            decoration: _getInputDecoration(hintText: 'e.g. 10.00'),
+                            onChanged: (_) => calculateAmount(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: _buildFieldContainer(
+                          label: 'DISCOUNT AMOUNT',
+                          isMandatory: false,
+                          child: TextFormField(
+                            controller: discountAmountController,
+                            focusNode: discountAmountFocusNode,
+                            readOnly: !isDraft,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: AppColors.textPrimary, fontSize: 14),
+                            decoration: _getInputDecoration(hintText: 'e.g. 12.00'),
+                            onChanged: (_) => calculateAmount(),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
 
                   Container(
@@ -1117,6 +1201,22 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       physics: const BouncingScrollPhysics(),
       children: [
+        GlassCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildCardHeader('SPECIAL DISCOUNT', Icons.percent_rounded),
+              const SizedBox(height: 16),
+              _buildTextField(
+                label: 'ADDITIONAL DISCOUNT AMOUNT (QAR)',
+                controller: _specialDiscountController,
+                isMandatory: false,
+                hintText: 'Enter discount amount...',
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
         GlassCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

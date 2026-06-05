@@ -1515,7 +1515,8 @@ class _PaymentEntryFormScreenState extends State<PaymentEntryFormScreen> with Si
 class _SearchLinkSheet extends StatefulWidget {
   final String doctype;
   final ValueChanged<String> onSelect;
-  const _SearchLinkSheet({required this.doctype, required this.onSelect});
+  final Map<String, dynamic>? filters;
+  const _SearchLinkSheet({required this.doctype, required this.onSelect, this.filters});
 
   @override
   State<_SearchLinkSheet> createState() => _SearchLinkSheetState();
@@ -1556,6 +1557,7 @@ class _SearchLinkSheetState extends State<_SearchLinkSheet> {
         params: {
           'txt': query,
           'doctype': widget.doctype,
+          if (widget.filters != null) 'filters': jsonEncode(widget.filters),
         },
       );
       
@@ -1903,7 +1905,11 @@ class _LinkInvoiceBottomSheetState extends State<_LinkInvoiceBottomSheet> {
               isScrollControlled: true,
               backgroundColor: Colors.transparent,
               builder: (ctx) {
-                return _SearchLinkSheet(doctype: doctype, onSelect: onChanged);
+                return _SearchLinkSheet(
+                  doctype: doctype,
+                  onSelect: onChanged,
+                  filters: {'party': widget.party},
+                );
               },
             );
           },

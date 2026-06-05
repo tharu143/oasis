@@ -47,11 +47,8 @@ class _SalesInvoiceDetailScreenState extends State<SalesInvoiceDetailScreen> {
   }
 
   bool canEdit({required int docStatus, required List<String> workflowActions, String? workflowState}) {
-    if (docStatus != 0) return false;
-    if (workflowActions.isEmpty) return false;
-    final docState = workflowState ?? 'Draft';
-    if (docState != _userActionState) return false;
-    return true;
+    if (docStatus == 0) return true;
+    return false;
   }
 
   Future<void> _loadUserRoles() async {
@@ -236,22 +233,53 @@ class _SalesInvoiceDetailScreenState extends State<SalesInvoiceDetailScreen> {
         {'source_name': _salesInvoice.name ?? ''},
       );
       setState(() => _isLoading = false);
-      if (response['message'] != null) {
-        if (mounted) {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PaymentEntryFormScreen(
-                initialData: Map<String, dynamic>.from(response['message']),
-              ),
-            ),
-          );
-          if (result == true) {
-            _fetchDetails();
+      Map<String, dynamic>? mappedData;
+      String? errorMessage;
+      
+      if (response is Map) {
+        final message = response['message'];
+        if (message is Map) {
+          if (message['status'] == 'error') {
+            errorMessage = message['message']?.toString();
+          } else if (message['status'] == 'success') {
+            final d = message['data'];
+            if (d is Map) {
+              mappedData = Map<String, dynamic>.from(d);
+            }
+          } else {
+            mappedData = Map<String, dynamic>.from(message);
           }
+        } else if (response['status'] == 'error') {
+          errorMessage = response['message']?.toString();
+        } else if (response['status'] == 'success') {
+          final d = response['data'];
+          if (d is Map) {
+            mappedData = Map<String, dynamic>.from(d);
+          }
+        } else if (response['data'] is Map) {
+          mappedData = Map<String, dynamic>.from(response['data']);
         }
-      } else {
+      }
+      
+      if (errorMessage != null) {
+        throw errorMessage;
+      }
+      if (mappedData == null) {
         throw 'Failed to map sales invoice to payment entry';
+      }
+
+      if (mounted) {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaymentEntryFormScreen(
+              initialData: mappedData,
+            ),
+          ),
+        );
+        if (result == true) {
+          _fetchDetails();
+        }
       }
     } catch (e) {
       setState(() => _isLoading = false);

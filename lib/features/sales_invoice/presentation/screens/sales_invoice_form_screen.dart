@@ -29,6 +29,7 @@ class _SalesInvoiceFormScreenState extends State<SalesInvoiceFormScreen> with Ti
   late TextEditingController _preparedByController;
   late TextEditingController _verifiedByController;
   late TextEditingController _approvedByController;
+  late TextEditingController _specialDiscountController;
 
   // Animation Controllers for recalculation bounce
   late AnimationController _totalsAnimController;
@@ -186,11 +187,13 @@ class _SalesInvoiceFormScreenState extends State<SalesInvoiceFormScreen> with Ti
     _preparedByController = TextEditingController(text: _doc['custom_prepared_by']);
     _verifiedByController = TextEditingController(text: _doc['custom_verified_by']);
     _approvedByController = TextEditingController(text: _doc['custom_approved_by']);
+    _specialDiscountController = TextEditingController(text: (_doc['discount_amount'] ?? 0.0).toString());
 
     _customerNameController.addListener(() => _doc['customer_name'] = _customerNameController.text);
     _preparedByController.addListener(() => _doc['custom_prepared_by'] = _preparedByController.text);
     _verifiedByController.addListener(() => _doc['custom_verified_by'] = _verifiedByController.text);
     _approvedByController.addListener(() => _doc['custom_approved_by'] = _approvedByController.text);
+    _specialDiscountController.addListener(_recalculateTotals);
   }
 
   @override
@@ -199,6 +202,7 @@ class _SalesInvoiceFormScreenState extends State<SalesInvoiceFormScreen> with Ti
     _preparedByController.dispose();
     _verifiedByController.dispose();
     _approvedByController.dispose();
+    _specialDiscountController.dispose();
     _totalsAnimController.dispose();
     super.dispose();
   }
@@ -211,14 +215,22 @@ class _SalesInvoiceFormScreenState extends State<SalesInvoiceFormScreen> with Ti
     for (var item in itemsList) {
       final qty = (item['qty'] as num? ?? 0.0).toDouble();
       final rate = (item['rate'] as num? ?? 0.0).toDouble();
+      final discountAmount = (item['discount_amount'] as num? ?? 0.0).toDouble();
+      final netRate = rate - discountAmount;
+      item['net_rate'] = netRate;
+      item['amount'] = qty * netRate;
       totalQty += qty;
-      netTotal += qty * rate;
+      netTotal += qty * netRate;
     }
+
+    final discountAmount = double.tryParse(_specialDiscountController.text) ?? 0.0;
 
     setState(() {
       _doc['total_qty'] = totalQty;
       _doc['net_total'] = netTotal;
-      _doc['grand_total'] = netTotal;
+      _doc['discount_amount'] = discountAmount;
+      _doc['apply_discount_on'] = 'Grand Total';
+      _doc['grand_total'] = netTotal - discountAmount;
     });
 
     _totalsAnimController.forward(from: 0.0);
@@ -753,11 +765,19 @@ class _SalesInvoiceFormScreenState extends State<SalesInvoiceFormScreen> with Ti
             'conversion_factor': 1.0,
             'stock_uom': 'Nos',
             'stock_qty': 1.0,
+            'discount_percentage': 0.0,
+            'discount_amount': 0.0,
+            'net_rate': 0.0,
+            'net_amount': 0.0,
           };
 
     final qtyController = TextEditingController(text: localItem['qty']?.toString());
     final rateController = TextEditingController(text: localItem['rate']?.toString());
     final conversionController = TextEditingController(text: localItem['conversion_factor']?.toString());
+    final discountPercentController = TextEditingController(text: localItem['discount_percentage']?.toString());
+    final discountAmountController = TextEditingController(text: localItem['discount_amount']?.toString());
+    final discountPercentFocusNode = FocusNode();
+    final discountAmountFocusNode = FocusNode();
 
     showModalBottomSheet(
       context: context,
@@ -769,11 +789,35 @@ class _SalesInvoiceFormScreenState extends State<SalesInvoiceFormScreen> with Ti
             final double rate = double.tryParse(rateController.text) ?? 0.0;
             final double qty = double.tryParse(qtyController.text) ?? 1.0;
             final double conversion = double.tryParse(conversionController.text) ?? 1.0;
+
+            double discountPercent = 0.0;
+            double discountAmount = 0.0;
+
+            if (discountAmountFocusNode.hasFocus) {
+              discountAmount = double.tryParse(discountAmountController.text) ?? 0.0;
+              if (rate > 0) {
+                discountPercent = (discountAmount / rate) * 100;
+                discountPercentController.text = discountPercent.toStringAsFixed(2);
+              }
+            } else {
+              discountPercent = double.tryParse(discountPercentController.text) ?? 0.0;
+              discountAmount = rate * (discountPercent / 100);
+              if (discountPercentFocusNode.hasFocus || rateController.text.isNotEmpty) {
+                discountAmountController.text = discountAmount.toStringAsFixed(2);
+              }
+            }
+
+            final double netRate = rate - discountAmount;
+            final double amount = qty * netRate;
+
             setSheetState(() {
               localItem['rate'] = rate;
               localItem['qty'] = qty;
               localItem['conversion_factor'] = conversion;
-              localItem['amount'] = qty * rate;
+              localItem['discount_percentage'] = discountPercent;
+              localItem['discount_amount'] = discountAmount;
+              localItem['net_rate'] = netRate;
+              localItem['amount'] = amount;
               localItem['stock_qty'] = qty * conversion;
             });
           }
@@ -897,6 +941,40 @@ class _SalesInvoiceFormScreenState extends State<SalesInvoiceFormScreen> with Ti
                     ),
                   ),
 
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildFieldContainer(
+                          label: 'DISCOUNT (%)',
+                          isMandatory: false,
+                          child: TextFormField(
+                            controller: discountPercentController,
+                            focusNode: discountPercentFocusNode,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, color: AppColors.textPrimary, fontSize: 14),
+                            decoration: _getInputDecoration(hintText: 'e.g. 10.00'),
+                            onChanged: (_) => calculateAmount(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: _buildFieldContainer(
+                          label: 'DISCOUNT AMOUNT',
+                          isMandatory: false,
+                          child: TextFormField(
+                            controller: discountAmountController,
+                            focusNode: discountAmountFocusNode,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, color: AppColors.textPrimary, fontSize: 14),
+                            decoration: _getInputDecoration(hintText: 'e.g. 12.00'),
+                            onChanged: (_) => calculateAmount(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
                   Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
@@ -958,10 +1036,166 @@ class _SalesInvoiceFormScreenState extends State<SalesInvoiceFormScreen> with Ti
   }
 
   Widget _buildTermsTab() {
+    final List<dynamic> schedule = _doc['payment_schedule'] ?? [];
+
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       physics: const BouncingScrollPhysics(),
       children: [
+        _buildGlassCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildCardHeader('PAYMENT TERMS TEMPLATE', Icons.schedule_rounded),
+              const SizedBox(height: 16),
+              _buildFieldContainer(
+                label: 'PAYMENT TEMPLATE ID',
+                isMandatory: false,
+                child: _buildSelectorTrigger(
+                  value: _doc['payment_terms_template']?.toString().isNotEmpty == true
+                      ? _doc['payment_terms_template']
+                      : null,
+                  hint: 'Select Template...',
+                  onTap: () => _showSearchDialog(
+                    title: 'Payment Templates',
+                    doctype: 'Payment Terms Template',
+                    onSelected: (template) {
+                      setState(() => _doc['payment_terms_template'] = template);
+                      _recalculateTotals();
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (schedule.isNotEmpty) ...[
+          _buildGlassCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildCardHeader('PAYMENT SCHEDULE / MILESTONES', Icons.payments_rounded),
+                const SizedBox(height: 16),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: schedule.length,
+                  itemBuilder: (context, index) {
+                    final term = schedule[index];
+                    final portion = (term['invoice_portion'] as num? ?? 0.0).toDouble();
+                    final amount = (term['payment_amount'] as num? ?? 0.0).toDouble();
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.border, width: 1.0),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  (term['payment_term'] ?? 'Milestone').toString().toUpperCase(),
+                                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF8B5CF6).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '${portion.toStringAsFixed(1)}%',
+                                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: const Color(0xFF8B5CF6), fontSize: 11),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          if (term['description'] != null && term['description'].toString().isNotEmpty) ...[
+                            Text(
+                              term['description'].toString(),
+                              style: GoogleFonts.plusJakartaSans(color: AppColors.textSecondary, fontSize: 12),
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'AMOUNT',
+                                style: GoogleFonts.plusJakartaSans(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                              ),
+                              Text(
+                                'QAR ${amount.toStringAsFixed(2)}',
+                                style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w900, color: const Color(0xFF8B5CF6)),
+                              ),
+                            ],
+                          ),
+                          const Divider(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'DUE DATE',
+                                style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                              ),
+                              InkWell(
+                                onTap: () async {
+                                  final initialDate = DateTime.tryParse(term['due_date']?.toString() ?? '') ?? DateTime.now();
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: initialDate,
+                                    firstDate: DateTime(2020),
+                                    lastDate: DateTime(2100),
+                                  );
+                                  if (picked != null) {
+                                    setState(() {
+                                      term['due_date'] = DateFormat('yyyy-MM-dd').format(picked);
+                                    });
+                                  }
+                                },
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    border: Border.all(color: AppColors.border),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Text(
+                                        term['due_date'] != null && term['due_date'].toString().isNotEmpty
+                                            ? DateFormat('dd MMM yyyy').format(DateTime.parse(term['due_date']))
+                                            : 'Select Date',
+                                        style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Icon(Icons.calendar_month_rounded, size: 16, color: Color(0xFF8B5CF6)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
         _buildGlassCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -980,8 +1214,6 @@ class _SalesInvoiceFormScreenState extends State<SalesInvoiceFormScreen> with Ti
   }
 
   Widget _buildSummaryTab() {
-    final List<dynamic> milestones = _doc['payment_schedule'] ?? [];
-
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       physics: const BouncingScrollPhysics(),
@@ -1003,66 +1235,14 @@ class _SalesInvoiceFormScreenState extends State<SalesInvoiceFormScreen> with Ti
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildCardHeader('PAYMENT MILESTONES TEMPLATE', Icons.schedule_rounded),
+              _buildCardHeader('SPECIAL DISCOUNT', Icons.percent_rounded),
               const SizedBox(height: 16),
-              _buildFieldContainer(
-                label: 'PAYMENT TEMPLATE ID',
+              _buildTextField(
+                label: 'ADDITIONAL DISCOUNT AMOUNT (QAR)',
+                controller: _specialDiscountController,
                 isMandatory: false,
-                child: _buildSelectorTrigger(
-                  value: _doc['payment_terms_template']?.toString().isNotEmpty == true
-                      ? _doc['payment_terms_template']
-                      : null,
-                  hint: 'Select Template...',
-                  onTap: () => _showSearchDialog(
-                    title: 'Payment Templates',
-                    doctype: 'Payment Terms Template',
-                    onSelected: (template) {
-                      setState(() => _doc['payment_terms_template'] = template);
-                      _recalculateTotals();
-                    },
-                  ),
-                ),
+                hintText: 'Enter discount amount...',
               ),
-              if (milestones.isNotEmpty) ...[
-                const Divider(height: 24),
-                Text(
-                  'COMPUTED MILESTONES',
-                  style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: 12),
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: milestones.length,
-                  itemBuilder: (context, index) {
-                    final term = milestones[index];
-                    final portion = (term['invoice_portion'] as num? ?? 0.0).toDouble();
-                    final amt = (term['payment_amount'] as num? ?? 0.0).toDouble();
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            term['payment_term'] ?? 'Milestone',
-                            style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            '${portion.toStringAsFixed(0)}% (QAR ${amt.toStringAsFixed(2)})',
-                            style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF8B5CF6)),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ],
             ],
           ),
         ),

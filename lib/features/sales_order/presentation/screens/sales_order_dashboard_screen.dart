@@ -347,11 +347,11 @@ class _SalesOrderDashboardScreenState extends State<SalesOrderDashboardScreen> {
   }
 
   Widget _buildActionNeededCard() {
-    final int actionCount = _dashboardData['action_required'] ?? 0;
-    if (actionCount == 0) return const SizedBox.shrink();
-
     final roleInfo = _roleInfo;
     final String filterState = roleInfo?.actionState ?? 'Draft';
+    final int actionCount = _dashboardData['data']?[filterState] ?? 0;
+    if (actionCount == 0) return const SizedBox.shrink();
+
     final String actionDesc = RoleHelper.getActionDescription(
       roleInfo?.roles ?? [],
       actionCount,

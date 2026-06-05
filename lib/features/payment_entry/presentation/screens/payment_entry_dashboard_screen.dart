@@ -184,11 +184,11 @@ class _PaymentEntryDashboardScreenState extends State<PaymentEntryDashboardScree
   }
 
   Widget _buildActionRequiredCard() {
-    final int actionRequired = _dashboardData['action_required'] ?? 0;
-    if (actionRequired == 0) return const SizedBox.shrink();
-
     final roleInfo = _roleInfo;
     final String filterState = roleInfo?.actionState ?? 'Draft';
+    final int actionRequired = _dashboardData['data']?[filterState] ?? 0;
+    if (actionRequired == 0) return const SizedBox.shrink();
+
     final String actionDesc = RoleHelper.getActionDescription(
       roleInfo?.roles ?? [],
       actionRequired,

@@ -604,8 +604,22 @@ class _MaterialRequestDetailScreenState extends State<MaterialRequestDetailScree
       setState(() => _isLoading = false);
 
       Map<String, dynamic> mappedData;
-      if (response['status'] == 'success' && response['message'] != null) {
-        mappedData = Map<String, dynamic>.from(response['message']);
+      String? status;
+      dynamic extractedData;
+      
+      if (response is Map) {
+        status = response['status']?.toString();
+        extractedData = response['data'];
+        
+        final message = response['message'];
+        if (message is Map) {
+          status ??= message['status']?.toString();
+          extractedData ??= message['data'] ?? message;
+        }
+      }
+      
+      if (status == 'success' && extractedData is Map) {
+        mappedData = Map<String, dynamic>.from(extractedData);
       } else {
         throw 'API mapping returned failure';
       }

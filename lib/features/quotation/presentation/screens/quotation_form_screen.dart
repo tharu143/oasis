@@ -66,6 +66,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
   // Payment Terms Controllers
   late TextEditingController _paymentTermsEngController;
   late TextEditingController _paymentTermsArabicController;
+  late TextEditingController _specialDiscountController;
 
   // Animation Controllers for UI polish
   late AnimationController _totalsAnimController;
@@ -249,6 +250,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
     _exclusionsArabicController = TextEditingController(text: _doc['custom_exclusions_in_arabic']);
     _paymentTermsEngController = TextEditingController(text: _doc['custom_payment_terms_eng']);
     _paymentTermsArabicController = TextEditingController(text: _doc['custom_payment_terms_arabic']);
+    _specialDiscountController = TextEditingController(text: (_doc['discount_amount'] ?? 0.0).toString());
     
     // Standard event listeners to sync values instantly from Controllers into _doc Map
     _customerNameController.addListener(() => _doc['customer_name'] = _customerNameController.text);
@@ -287,6 +289,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
     _exclusionsArabicController.addListener(() => _doc['custom_exclusions_in_arabic'] = _exclusionsArabicController.text);
     _paymentTermsEngController.addListener(() => _doc['custom_payment_terms_eng'] = _paymentTermsEngController.text);
     _paymentTermsArabicController.addListener(() => _doc['custom_payment_terms_arabic'] = _paymentTermsArabicController.text);
+    _specialDiscountController.addListener(_recalculateTotals);
   }
 
   @override
@@ -331,6 +334,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
     _exclusionsArabicController.dispose();
     _paymentTermsEngController.dispose();
     _paymentTermsArabicController.dispose();
+    _specialDiscountController.dispose();
   }
 
   // --- Real-time Calculation Engine ---
@@ -347,13 +351,17 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
       totalNet += qty * rate;
     }
 
+    final discountAmount = double.tryParse(_specialDiscountController.text) ?? 0.0;
+
     setState(() {
       _doc['total_qty'] = totalQty;
       _doc['total'] = totalNet;
       _doc['base_total'] = totalNet;
+      _doc['discount_amount'] = discountAmount;
+      _doc['apply_discount_on'] = 'Grand Total';
       
       final taxes = (_doc['total_taxes_and_charges'] as num? ?? 0.0).toDouble();
-      final grandTotal = totalNet + taxes;
+      final grandTotal = totalNet + taxes - discountAmount;
       _doc['grand_total'] = grandTotal;
       
       final int disableRounded = (_doc['disable_rounded_total'] ?? 0) as int;
@@ -627,6 +635,59 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
 
   // --- Save / Create Quotation POST Trigger ---
   Future<void> _saveQuotation() async {
+    final mode = _doc['custom_quote_type'] ?? 'Retail';
+    
+    // Explicit Validation for Project & AMC
+    if (mode == 'Project') {
+      if (_subjectController.text.trim().isEmpty || _arabicSubjectController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.error,
+            content: Text('Subject and Subject (Arabic) are required for Project Quotations.', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        );
+        return;
+      }
+      final projectItems = _doc['custom_project_item'] as List?;
+      if (projectItems == null || projectItems.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.error,
+            content: Text('At least one Project Item is required for Project Quotations.', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        );
+        return;
+      }
+    } else if (mode == 'AMC') {
+      if (_subjectController.text.trim().isEmpty || _arabicSubjectController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.error,
+            content: Text('Subject and Subject (Arabic) are required for AMC Quotations.', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        );
+        return;
+      }
+      if (_noOfVisitsController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.error,
+            content: Text('Number of Scheduled Visits is required for AMC Quotations.', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        );
+        return;
+      }
+      if (_contractPeriodController.text.trim().isEmpty || _contractPeriodArabicController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.error,
+            content: Text('Contract Period (English & Arabic) are required for AMC Quotations.', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        );
+        return;
+      }
+    }
+
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1218,6 +1279,22 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> with TickerPr
                     ],
                   ),
                 ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        GlassCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildCardHeader('SPECIAL DISCOUNT', Icons.percent_rounded),
+              const SizedBox(height: 16),
+              _buildTextField(
+                label: 'ADDITIONAL DISCOUNT AMOUNT (QAR)',
+                controller: _specialDiscountController,
+                isMandatory: false,
+                hintText: 'Enter discount amount...',
               ),
             ],
           ),
