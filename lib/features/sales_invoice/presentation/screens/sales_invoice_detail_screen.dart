@@ -303,7 +303,13 @@ class _SalesInvoiceDetailScreenState extends State<SalesInvoiceDetailScreen> {
         {'name': _salesInvoice.name ?? ''},
       );
       final message = response['message'] ?? response;
-      if (response['status'] == 'success' || message['status'] == 'success' || response['data'] != null) {
+      final bool isSuccess = response['status'] == 'success' ||
+          message['status'] == 'success' ||
+          message['docstatus'] == 1 ||
+          (message is Map && message['status'] != 'error' && message['message']?.toString().toLowerCase().contains('submitted') == true) ||
+          response['data'] != null;
+
+      if (isSuccess) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Invoice submitted successfully!'), backgroundColor: Color(0xFF10B981)),
         );
