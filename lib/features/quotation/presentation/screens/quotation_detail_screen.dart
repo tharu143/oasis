@@ -47,8 +47,9 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
 
   bool canEdit({required int docStatus, required List<String> workflowActions, String? workflowState}) {
     if (docStatus != 0) return false;
+    final docState = (workflowState == null || workflowState.isEmpty) ? 'Draft' : workflowState;
+    if (docState.toLowerCase() == 'draft') return true;
     if (workflowActions.isEmpty) return false;
-    final docState = workflowState ?? 'Draft';
     if (docState != _userActionState) return false;
     return true;
   }

@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///
 /// Priority order (highest wins):
 ///   1. Oasis Manager → "Verified By Finance Team" (pending MD approval)
-///   2. Accounts User/Manager → "Pending" (pending finance verification)
+///   2. Accounts Manager → "Pending" (pending finance verification)
 ///   3. Default (Sales User, Purchase User, etc.) → "Draft" (pending review)
 class RoleHelper {
   /// Returns the workflow state the current user needs to act on,
@@ -62,19 +62,17 @@ class RoleHelper {
   static bool _isOasisMgr(List<String> roles) {
     return roles.any((r) {
       final l = r.toLowerCase().trim();
-      return l == 'oasis mgr' ||
-          l == 'oasis manager' ||
+      return l == 'oasis manager' ||
+          l == 'oasis mgr' ||
           l == 'md' ||
-          l == 'managing director' ||
-          (l.contains('oasis') && (l.contains('mgr') || l.contains('manager')));
+          l == 'managing director';
     });
   }
 
   static bool _isAccounts(List<String> roles) {
-    // Accounts Manager/User always takes priority — even if they also have Sales/Purchase roles.
     return roles.any((r) {
-      final l = r.toLowerCase();
-      return l == 'accounts user' || l == 'accounts manager';
+      final l = r.toLowerCase().trim();
+      return l == 'accounts manager';
     });
   }
 

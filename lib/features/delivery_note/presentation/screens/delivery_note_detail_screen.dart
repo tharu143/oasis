@@ -45,8 +45,12 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
   }
 
   bool canEdit({required int docStatus, required List<String> workflowActions, String? workflowState}) {
-    if (docStatus == 0) return true;
-    return false;
+    if (docStatus != 0) return false;
+    final docState = (workflowState == null || workflowState.isEmpty) ? 'Draft' : workflowState;
+    if (docState.toLowerCase() == 'draft') return true;
+    if (workflowActions.isEmpty) return false;
+    if (docState != _userActionState) return false;
+    return true;
   }
 
   Color workflowStateColor(String state) {
