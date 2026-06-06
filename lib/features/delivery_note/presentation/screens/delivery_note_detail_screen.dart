@@ -81,6 +81,14 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
           final data = Map<String, dynamic>.from(body['data'] ?? {});
           _workflowActions = List<String>.from(body['workflow_actions'] ?? []);
           _availableActions = List<String>.from(body['available_actions'] ?? []);
+          
+          final double perBilled = (data['per_billed'] as num? ?? 0.0).toDouble();
+          final String docStatusText = (data['status'] ?? '').toString().toLowerCase();
+          if (perBilled >= 100.0 || docStatusText == 'completed' || docStatusText == 'closed') {
+            _availableActions.remove('Make Sales Invoice');
+            _availableActions.remove('make sales invoice');
+          }
+          
           _deliveryNote = DeliveryNoteModel.fromJson(data);
           _isLoading = false;
         });
