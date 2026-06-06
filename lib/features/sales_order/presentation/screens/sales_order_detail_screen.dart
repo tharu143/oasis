@@ -26,6 +26,7 @@ class _SalesOrderDetailScreenState extends State<SalesOrderDetailScreen> {
   List<String> _availableActions = [];
   bool _isLoading = false;
   String? _userActionState;
+  Map<String, dynamic>? _mappingStatus;
 
   @override
   void initState() {
@@ -53,6 +54,25 @@ class _SalesOrderDetailScreenState extends State<SalesOrderDetailScreen> {
     return true;
   }
 
+  Future<void> _fetchMappingStatus() async {
+    try {
+      final res = await _apiClient.post(
+        'oasis_mobile.api.mapping.check_mapping_status',
+        {
+          'doctype': 'Sales Order',
+          'docname': _salesOrder.name ?? '',
+        },
+      );
+      if (mounted && res['message'] != null) {
+        setState(() {
+          _mappingStatus = Map<String, dynamic>.from(res['message']);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching mapping status: $e');
+    }
+  }
+
   Future<void> _fetchDetails() async {
     setState(() => _isLoading = true);
     try {
@@ -70,6 +90,7 @@ class _SalesOrderDetailScreenState extends State<SalesOrderDetailScreen> {
           _salesOrder = SalesOrderModel.fromJson(data);
           _isLoading = false;
         });
+        _fetchMappingStatus();
       }
     } catch (e) {
       debugPrint('❌ Error fetching sales order details: $e');
@@ -701,20 +722,67 @@ class _SalesOrderDetailScreenState extends State<SalesOrderDetailScreen> {
 
     // If the document is fully approved (docstatus == 1), ALWAYS show transition buttons
     if (isFullyApproved) {
-      buttons.add(
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            child: _buildActionButton(
-              'MAKE MATERIAL REQUEST',
-              const Color(0xFF06B6D4),
-              Colors.white,
-              onTap: _makeMaterialRequest,
+      final isCompletedForMr = _mappingStatus?['is_completed_for_mr'] ?? false;
+      final isCompletedForDn = _mappingStatus?['is_completed_for_dn'] ?? false;
+
+      if (isCompletedForMr && isCompletedForDn) {
+        buttons.add(
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Container(
+                height: 54,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Center(
+                  child: Text(
+                    _mappingStatus?['message'] ?? 'Sales Order Fully Processed',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
-      );
-
+        );
+      } else {
+        if (!isCompletedForMr) {
+          buttons.add(
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: _buildActionButton(
+                  'MAKE MATERIAL REQUEST',
+                  const Color(0xFF06B6D4),
+                  Colors.white,
+                  onTap: _makeMaterialRequest,
+                ),
+              ),
+            ),
+          );
+        }
+        if (!isCompletedForDn) {
+          buttons.add(
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: _buildActionButton(
+                  'MAKE DELIVERY NOTE',
+                  const Color(0xFF8B5CF6),
+                  Colors.white,
+                  onTap: _makeDeliveryNote,
+                ),
+              ),
+            ),
+          );
+        }
+      }
     } else {
       // Document still in workflow - show the workflow action buttons
       if (state.contains('pending')) {

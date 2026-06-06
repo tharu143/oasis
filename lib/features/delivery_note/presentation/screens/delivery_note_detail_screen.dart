@@ -26,6 +26,7 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
   List<String> _availableActions = [];
   bool _isLoading = false;
   String? _userActionState;
+  Map<String, dynamic>? _mappingStatus;
 
   @override
   void initState() {
@@ -67,6 +68,25 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
     }
   }
 
+  Future<void> _fetchMappingStatus() async {
+    try {
+      final res = await _apiClient.post(
+        'oasis_mobile.api.mapping.check_mapping_status',
+        {
+          'doctype': 'Delivery Note',
+          'docname': _deliveryNote.name ?? '',
+        },
+      );
+      if (mounted && res['message'] != null) {
+        setState(() {
+          _mappingStatus = Map<String, dynamic>.from(res['message']);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching mapping status: $e');
+    }
+  }
+
   Future<void> _fetchDetails() async {
     setState(() => _isLoading = true);
     try {
@@ -92,6 +112,7 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
           _deliveryNote = DeliveryNoteModel.fromJson(data);
           _isLoading = false;
         });
+        _fetchMappingStatus();
       } else {
         setState(() => _isLoading = false);
       }
@@ -546,6 +567,48 @@ class _DeliveryNoteDetailScreenState extends State<DeliveryNoteDetailScreen> {
   }
 
   Widget _buildFloatingBottomActions() {
+    final bool isCompleted = _mappingStatus?['is_completed'] ?? false;
+
+    if (isCompleted) {
+      return Positioned(
+        bottom: 0,
+        left: 0,
+        right: 0,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 34),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, -5))],
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Container(
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Center(
+                    child: Text(
+                      _mappingStatus?['message'] ?? 'Delivery Note Fully Processed',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (_availableActions.contains('Make Sales Invoice')) {
       return Positioned(
         bottom: 0,

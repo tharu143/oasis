@@ -25,6 +25,7 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
   List<String> _userRoles = [];
   bool _isLoading = false;
   String? _userActionState;
+  Map<String, dynamic>? _mappingStatus;
 
   @override
   void initState() {
@@ -61,6 +62,25 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
     });
   }
 
+  Future<void> _fetchMappingStatus() async {
+    try {
+      final res = await _apiClient.post(
+        'oasis_mobile.api.mapping.check_mapping_status',
+        {
+          'doctype': 'Quotation',
+          'docname': _quotation.name,
+        },
+      );
+      if (mounted && res['message'] != null) {
+        setState(() {
+          _mappingStatus = Map<String, dynamic>.from(res['message']);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching mapping status: $e');
+    }
+  }
+
   Future<void> _fetchDetails() async {
     setState(() => _isLoading = true);
     try {
@@ -81,6 +101,7 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
           _quotation = Quotation.fromJson(data);
           _isLoading = false;
         });
+        _fetchMappingStatus();
       }
     } catch (e) {
       debugPrint('❌ Error fetching details: $e');
@@ -972,20 +993,49 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
     List<Widget> buttons = [];
 
     if (isFullyApproved) {
-      // Workflow complete — always show MAKE SALES ORDER
-      buttons.add(
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            child: _buildActionButton(
-              'MAKE SALES ORDER',
-              AppColors.primary,
-              Colors.white,
-              onTap: _makeSalesOrder,
+      final isMapped = _mappingStatus?['is_completed'] ?? false;
+      if (isMapped) {
+        buttons.add(
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Container(
+                height: 54,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Center(
+                  child: Text(
+                    _mappingStatus?['message'] ?? 'Quotation Fully Processed',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
-      );
+        );
+      } else {
+        // Workflow complete — always show MAKE SALES ORDER
+        buttons.add(
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: _buildActionButton(
+                'MAKE SALES ORDER',
+                AppColors.primary,
+                Colors.white,
+                onTap: _makeSalesOrder,
+              ),
+            ),
+          ),
+        );
+      }
     } else {
       // Document still in workflow — show workflow action buttons only
       for (var action in _quotation.workflowActions) {

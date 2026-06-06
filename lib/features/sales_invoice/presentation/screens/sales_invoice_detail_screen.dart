@@ -27,6 +27,7 @@ class _SalesInvoiceDetailScreenState extends State<SalesInvoiceDetailScreen> {
   List<String> _userRoles = [];
   bool _isLoading = false;
   String? _userActionState;
+  Map<String, dynamic>? _mappingStatus;
 
   @override
   void initState() {
@@ -65,6 +66,25 @@ class _SalesInvoiceDetailScreenState extends State<SalesInvoiceDetailScreen> {
   bool get isSalesUser => _userRoles.any((r) => r.toLowerCase().contains('sales') || r.toLowerCase().contains('manager'));
   bool get isAccountsUser => _userRoles.any((r) => r.toLowerCase().contains('account') || r.toLowerCase().contains('finance'));
 
+  Future<void> _fetchMappingStatus() async {
+    try {
+      final res = await _apiClient.post(
+        'oasis_mobile.api.mapping.check_mapping_status',
+        {
+          'doctype': 'Sales Invoice',
+          'docname': _salesInvoice.name ?? '',
+        },
+      );
+      if (mounted && res['message'] != null) {
+        setState(() {
+          _mappingStatus = Map<String, dynamic>.from(res['message']);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching mapping status: $e');
+    }
+  }
+
   Future<void> _fetchDetails() async {
     setState(() => _isLoading = true);
     try {
@@ -91,6 +111,7 @@ class _SalesInvoiceDetailScreenState extends State<SalesInvoiceDetailScreen> {
           _salesInvoice = SalesInvoiceModel.fromJson(data);
           _isLoading = false;
         });
+        _fetchMappingStatus();
       } else {
         setState(() => _isLoading = false);
       }
@@ -634,8 +655,30 @@ class _SalesInvoiceDetailScreenState extends State<SalesInvoiceDetailScreen> {
   Widget _buildFloatingBottomActions() {
     List<Widget> buttons = [];
     final docstatus = _salesInvoice.docstatus ?? 0;
+    final bool isCompleted = _mappingStatus?['is_completed'] ?? false;
 
-    if (_availableActions.isNotEmpty) {
+    if (isCompleted) {
+      buttons.add(
+        Container(
+          height: 52,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Center(
+            child: Text(
+              _mappingStatus?['message'] ?? 'Sales Invoice Fully Processed',
+              style: GoogleFonts.plusJakartaSans(
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ),
+      );
+    } else if (_availableActions.isNotEmpty) {
       // Render strictly based on available_actions returned by the API
       for (var action in _availableActions) {
         if (action == 'Submit') {

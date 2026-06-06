@@ -24,6 +24,7 @@ class _MaterialRequestDetailScreenState extends State<MaterialRequestDetailScree
   List<String> _workflowActions = [];
   List<String> _availableActions = [];
   String? _userActionState;
+  Map<String, dynamic>? _mappingStatus;
 
   @override
   void initState() {
@@ -64,6 +65,25 @@ class _MaterialRequestDetailScreenState extends State<MaterialRequestDetailScree
     }
   }
 
+  Future<void> _fetchMappingStatus() async {
+    try {
+      final res = await _apiClient.post(
+        'oasis_mobile.api.mapping.check_mapping_status',
+        {
+          'doctype': 'Material Request',
+          'docname': widget.materialRequest.name ?? '',
+        },
+      );
+      if (mounted && res['message'] != null) {
+        setState(() {
+          _mappingStatus = Map<String, dynamic>.from(res['message']);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching mapping status: $e');
+    }
+  }
+
   Future<void> _fetchDetails() async {
     setState(() => _isLoading = true);
     try {
@@ -83,6 +103,7 @@ class _MaterialRequestDetailScreenState extends State<MaterialRequestDetailScree
           _availableActions = avActions.map((e) => e.toString()).toList();
           _isLoading = false;
         });
+        _fetchMappingStatus();
       } else {
         setState(() => _isLoading = false);
       }
@@ -525,6 +546,7 @@ class _MaterialRequestDetailScreenState extends State<MaterialRequestDetailScree
   }
 
   Widget _buildBottomActionTransitions(MaterialRequestModel doc) {
+    final bool isCompleted = _mappingStatus?['is_completed'] ?? false;
     final bool showMakeDeliveryNote = (doc.workflowState?.toLowerCase() == 'approved by md') ||
                                       (doc.docstatus == 1 && _availableActions.contains('Make Delivery Note'));
 
@@ -545,41 +567,60 @@ class _MaterialRequestDetailScreenState extends State<MaterialRequestDetailScree
         child: Row(
           children: [
             Expanded(
-              child: Container(
-                height: 52,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF8B5CF6),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF8B5CF6).withOpacity(0.3),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: InkWell(
-                  onTap: _isLoading ? null : () => _makeDeliveryNote(doc),
-                  borderRadius: BorderRadius.circular(16),
-                  child: Center(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 18),
-                        const SizedBox(width: 8),
-                        Text(
-                          'MAKE DELIVERY NOTE',
+              child: isCompleted
+                  ? Container(
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Center(
+                        child: Text(
+                          _mappingStatus?['message'] ?? 'Material Request Fully Processed',
                           style: GoogleFonts.plusJakartaSans(
-                            color: Colors.white,
+                            color: Colors.grey.shade600,
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
                           ),
                         ),
-                      ],
+                      ),
+                    )
+                  : Container(
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF8B5CF6),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: InkWell(
+                        onTap: _isLoading ? null : () => _makeDeliveryNote(doc),
+                        borderRadius: BorderRadius.circular(16),
+                        child: Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                'MAKE DELIVERY NOTE',
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ),
             ),
           ],
         ),
