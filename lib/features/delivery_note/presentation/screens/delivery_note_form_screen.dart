@@ -661,6 +661,29 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
                 ],
               ),
               const SizedBox(height: 14),
+              _buildFieldContainer(
+                label: 'COMPANY',
+                isMandatory: true,
+                child: _buildSelectorTrigger(
+                  value: _doc['company']?.toString().isNotEmpty == true ? _doc['company'] : null,
+                  hint: 'Select Company...',
+                  onTap: () => _showSearchDialog(
+                    title: 'Search Company',
+                    doctype: 'Company',
+                    onSelected: (val) {
+                      setState(() {
+                        _doc['company'] = val;
+                        if (_doc['items'] is List) {
+                          for (var item in _doc['items']) {
+                            item['warehouse'] = null;
+                          }
+                        }
+                      });
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
               _buildDropdownField(
                 label: 'PRICE LIST',
                 value: _doc['selling_price_list'],
@@ -815,6 +838,7 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
             'qty': 1.0,
             'rate': 0.0,
             'amount': 0.0,
+            'warehouse': null,
             'description': '',
             'uom': 'Nos',
             'conversion_factor': 1.0,
@@ -957,6 +981,22 @@ class _DeliveryNoteFormScreenState extends State<DeliveryNoteFormScreen> with Ti
                           } catch (e) {
                             debugPrint('Error fetching item details: $e');
                           }
+                        },
+                      ),
+                    ),
+                  ),
+
+                  _buildFieldContainer(
+                    label: 'WAREHOUSE',
+                    isMandatory: true,
+                    child: _buildSelectorTrigger(
+                      value: localItem['warehouse'],
+                      hint: 'Select Warehouse...',
+                      onTap: () => _showSearchDialog(
+                        title: 'Search Warehouse',
+                        doctype: 'Warehouse',
+                        onSelected: (val) {
+                          setSheetState(() => localItem['warehouse'] = val);
                         },
                       ),
                     ),

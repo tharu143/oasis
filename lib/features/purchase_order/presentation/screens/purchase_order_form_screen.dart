@@ -578,6 +578,23 @@ class _PurchaseOrderFormScreenState extends State<PurchaseOrderFormScreen> with 
             children: [
               _buildCardHeader('TRANSACTION SETTINGS', Icons.calendar_month_rounded),
               const SizedBox(height: 16),
+              _buildFieldContainer(
+                label: 'COMPANY',
+                isMandatory: true,
+                child: _buildSelectorTrigger(
+                  value: _doc['company']?.toString().isNotEmpty == true ? _doc['company'] : null,
+                  hint: 'Select Company...',
+                  onTap: () => _showSearchDialog(
+                    title: 'Search Company',
+                    doctype: 'Company',
+                    onSelected: (val) {
+                      setState(() {
+                        _doc['company'] = val;
+                      });
+                    },
+                  ),
+                ),
+              ),
               _buildDateField(
                 label: 'TRANSACTION DATE',
                 value: _doc['transaction_date'],

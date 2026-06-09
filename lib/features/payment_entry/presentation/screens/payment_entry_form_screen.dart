@@ -657,6 +657,8 @@ class _PaymentEntryFormScreenState extends State<PaymentEntryFormScreen> with Si
             onChanged: (val) {
               setState(() {
                 _company = val;
+                _paidFrom = '';
+                _paidTo = '';
               });
               _fetchDefaultPaymentAccount(_modeOfPayment);
             },

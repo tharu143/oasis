@@ -767,7 +767,7 @@ class _SalesOrderDetailScreenState extends State<SalesOrderDetailScreen> {
             ),
           );
         }
-        if (!isCompletedForDn) {
+        if (!isCompletedForDn && _salesOrder.customQuoteType == 'AMC') {
           buttons.add(
             Expanded(
               child: Padding(

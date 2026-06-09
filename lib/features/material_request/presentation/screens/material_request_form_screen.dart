@@ -606,7 +606,15 @@ class _MaterialRequestFormScreenState extends State<MaterialRequestFormScreen> w
               const SizedBox(height: 8),
               InkWell(
                 onTap: () => _openSearchSheet('Select Company', 'Company', (val, details) {
-                  _doc['company'] = val;
+                  setState(() {
+                    _doc['company'] = val;
+                    if (_doc['items'] is List) {
+                      for (var item in _doc['items']) {
+                        item['warehouse'] = null;
+                        item['cost_center'] = null;
+                      }
+                    }
+                  });
                 }),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

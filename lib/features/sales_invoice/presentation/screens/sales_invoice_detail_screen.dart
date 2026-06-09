@@ -345,7 +345,7 @@ class _SalesInvoiceDetailScreenState extends State<SalesInvoiceDetailScreen> {
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Submit Error'),
-            content: Text(e.toString().replaceAll('Exception: ', '')),
+            content: Text(_cleanHtml(e.toString().replaceAll('Exception: ', ''))),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
@@ -381,7 +381,7 @@ class _SalesInvoiceDetailScreenState extends State<SalesInvoiceDetailScreen> {
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Cancel Error'),
-            content: Text(e.toString().replaceAll('Exception: ', '')),
+            content: Text(_cleanHtml(e.toString().replaceAll('Exception: ', ''))),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),

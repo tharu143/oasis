@@ -25,7 +25,6 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
   List<String> _userRoles = [];
   bool _isLoading = false;
   String? _userActionState;
-  Map<String, dynamic>? _mappingStatus;
 
   @override
   void initState() {
@@ -46,9 +45,15 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
     }
   }
 
-  bool canEdit({required int docStatus, required List<String> workflowActions, String? workflowState}) {
+  bool canEdit({
+    required int docStatus,
+    required List<String> workflowActions,
+    String? workflowState,
+  }) {
     if (docStatus != 0) return false;
-    final docState = (workflowState == null || workflowState.isEmpty) ? 'Draft' : workflowState;
+    final docState = (workflowState == null || workflowState.isEmpty)
+        ? 'Draft'
+        : workflowState;
     if (docState.toLowerCase() == 'draft') return true;
     if (workflowActions.isEmpty) return false;
     if (docState != _userActionState) return false;
@@ -62,25 +67,6 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
     });
   }
 
-  Future<void> _fetchMappingStatus() async {
-    try {
-      final res = await _apiClient.post(
-        'oasis_mobile.api.mapping.check_mapping_status',
-        {
-          'doctype': 'Quotation',
-          'docname': _quotation.name,
-        },
-      );
-      if (mounted && res['message'] != null) {
-        setState(() {
-          _mappingStatus = Map<String, dynamic>.from(res['message']);
-        });
-      }
-    } catch (e) {
-      debugPrint('Error fetching mapping status: $e');
-    }
-  }
-
   Future<void> _fetchDetails() async {
     setState(() => _isLoading = true);
     try {
@@ -88,7 +74,8 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
         'oasis_mobile.api.quotation.get_quotation',
         params: {'name': _quotation.name},
       );
-      if (response['message'] != null && response['message']['status'] == 'success') {
+      if (response['message'] != null &&
+          response['message']['status'] == 'success') {
         debugPrint('🔍 [FULL DETAIL RESPONSE] ${response['message']['data']}');
         if (response['message']['debug'] != null) {
           debugPrint('🔍 [BACKEND DEBUG] ${response['message']['debug']}');
@@ -101,7 +88,6 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
           _quotation = Quotation.fromJson(data);
           _isLoading = false;
         });
-        _fetchMappingStatus();
       }
     } catch (e) {
       debugPrint('❌ Error fetching details: $e');
@@ -142,8 +128,10 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
         }
 
         combined.sort((a, b) {
-          DateTime dateA = DateTime.tryParse(a['creation'] ?? '') ?? DateTime(2000);
-          DateTime dateB = DateTime.tryParse(b['creation'] ?? '') ?? DateTime(2000);
+          DateTime dateA =
+              DateTime.tryParse(a['creation'] ?? '') ?? DateTime(2000);
+          DateTime dateB =
+              DateTime.tryParse(b['creation'] ?? '') ?? DateTime(2000);
           return dateB.compareTo(dateA);
         });
 
@@ -160,16 +148,33 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Confirm $action', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to proceed with "$action"?', style: GoogleFonts.plusJakartaSans()),
+        title: Text(
+          'Confirm $action',
+          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Are you sure you want to proceed with "$action"?',
+          style: GoogleFonts.plusJakartaSans(),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: AppColors.textSecondary)),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.plusJakartaSans(
+                color: AppColors.textSecondary,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Confirm', style: GoogleFonts.plusJakartaSans(color: AppColors.primary, fontWeight: FontWeight.bold)),
+            child: Text(
+              'Confirm',
+              style: GoogleFonts.plusJakartaSans(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -181,12 +186,10 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
     try {
       final response = await _apiClient.post(
         'oasis_mobile.api.quotation.apply_workflow_action',
-        {
-          'name': _quotation.name,
-          'action': action,
-        },
+        {'name': _quotation.name, 'action': action},
       );
-      if (response['message'] != null && response['message']['status'] == 'success') {
+      if (response['message'] != null &&
+          response['message']['status'] == 'success') {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Action "$action" applied successfully')),
         );
@@ -235,13 +238,23 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(10),
                             boxShadow: [
-                              BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.04),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
                             ],
                           ),
                           labelColor: AppColors.primary,
                           unselectedLabelColor: AppColors.textSecondary,
-                          labelStyle: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 12),
-                          unselectedLabelStyle: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, fontSize: 12),
+                          labelStyle: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                          unselectedLabelStyle: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
                           tabs: const [
                             Tab(text: 'General'),
                             Tab(text: 'Technical'),
@@ -267,7 +280,9 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
             if (_isLoading)
               Container(
                 color: Colors.white24,
-                child: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                child: const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ),
               ),
             _buildFloatingBottomActions(),
           ],
@@ -283,7 +298,11 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
       elevation: 0,
       backgroundColor: AppColors.primary,
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+        icon: const Icon(
+          Icons.arrow_back_ios_new,
+          color: Colors.white,
+          size: 20,
+        ),
         onPressed: () => Navigator.pop(context),
       ),
       flexibleSpace: FlexibleSpaceBar(
@@ -292,8 +311,12 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  begin: Alignment.topLeft, end: Alignment.bottomRight,
-                  colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.primary,
+                    AppColors.primary.withOpacity(0.8),
+                  ],
                 ),
               ),
             ),
@@ -304,7 +327,10 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: _getStatusBgColor(_quotation.workflowState),
                       borderRadius: BorderRadius.circular(6),
@@ -313,19 +339,29 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
                     child: Text(
                       _quotation.workflowState.toUpperCase(),
                       style: GoogleFonts.plusJakartaSans(
-                        fontSize: 9, fontWeight: FontWeight.bold, color: _getStatusTextColor(_quotation.workflowState),
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: _getStatusTextColor(_quotation.workflowState),
                       ),
                     ),
                   ),
                   const SizedBox(height: 12),
                   Text(
                     '${_quotation.currency} ${intl.NumberFormat("#,##0.00").format(_quotation.baseGrandTotal)}',
-                    style: GoogleFonts.plusJakartaSans(fontSize: 34, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 34,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     _quotation.name,
-                    style: GoogleFonts.plusJakartaSans(fontSize: 14, color: Colors.white70, fontWeight: FontWeight.w500),
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14,
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
@@ -334,14 +370,19 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
         ),
       ),
       actions: [
-        if (canEdit(docStatus: _quotation.docstatus, workflowActions: _quotation.workflowActions, workflowState: _quotation.workflowState))
+        if (canEdit(
+          docStatus: _quotation.docstatus,
+          workflowActions: _quotation.workflowActions,
+          workflowState: _quotation.workflowState,
+        ))
           IconButton(
             icon: const Icon(Icons.edit, color: Colors.white, size: 22),
             onPressed: () async {
               final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => QuotationFormScreen(quotation: _quotation),
+                  builder: (context) =>
+                      QuotationFormScreen(quotation: _quotation),
                 ),
               );
               if (result == true) {
@@ -350,20 +391,25 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
               }
             },
           ),
-        IconButton(icon: const Icon(Icons.refresh, color: Colors.white, size: 22), onPressed: _fetchDetails),
+        IconButton(
+          icon: const Icon(Icons.refresh, color: Colors.white, size: 22),
+          onPressed: _fetchDetails,
+        ),
         const SizedBox(width: 8),
       ],
     );
   }
 
   Color _getStatusBgColor(String state) {
-    if (state.toLowerCase().contains('approved')) return const Color(0xFFD1FAE5);
+    if (state.toLowerCase().contains('approved'))
+      return const Color(0xFFD1FAE5);
     if (state.toLowerCase().contains('pending')) return const Color(0xFFFEF3C7);
     return Colors.white.withOpacity(0.2);
   }
 
   Color _getStatusTextColor(String state) {
-    if (state.toLowerCase().contains('approved')) return const Color(0xFF065F46);
+    if (state.toLowerCase().contains('approved'))
+      return const Color(0xFF065F46);
     if (state.toLowerCase().contains('pending')) return const Color(0xFF92400E);
     return Colors.white;
   }
@@ -379,12 +425,16 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
         const SizedBox(height: 24),
         _buildSectionTitle('Items'),
         const SizedBox(height: 12),
-        ..._quotation.items.map((item) => _buildExpandableItemCard(item)).toList(),
+        ..._quotation.items
+            .map((item) => _buildExpandableItemCard(item))
+            .toList(),
         if (_quotation.customProjectItem.isNotEmpty) ...[
           const SizedBox(height: 24),
           _buildSectionTitle('Project Items'),
           const SizedBox(height: 12),
-          ..._quotation.customProjectItem.map((item) => _buildProjectItemCard(item)).toList(),
+          ..._quotation.customProjectItem
+              .map((item) => _buildProjectItemCard(item))
+              .toList(),
         ],
         const SizedBox(height: 24),
         _buildSectionTitle('Signatories'),
@@ -397,13 +447,25 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
       children: [
-        _buildBilingualCard('Subject', _quotation.customSubject, _quotation.customSubjectInArabic),
+        _buildBilingualCard(
+          'Subject',
+          _quotation.customSubject,
+          _quotation.customSubjectInArabic,
+        ),
         const SizedBox(height: 24),
-        _buildBilingualCard('Scope of Work', _quotation.customScopeOfWork, _quotation.customScopeOfWorkInArabic),
+        _buildBilingualCard(
+          'Scope of Work',
+          _quotation.customScopeOfWork,
+          _quotation.customScopeOfWorkInArabic,
+        ),
         const SizedBox(height: 24),
         _buildTechnicalGrid(),
         const SizedBox(height: 24),
-        _buildBilingualCard('Exclusions', _quotation.customExclusionsEng, _quotation.customExclusionsInArabic),
+        _buildBilingualCard(
+          'Exclusions',
+          _quotation.customExclusionsEng,
+          _quotation.customExclusionsInArabic,
+        ),
       ],
     );
   }
@@ -412,17 +474,33 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
       children: [
-        _buildBilingualCard('Payment Terms', _quotation.customPaymentTermsEng, _quotation.customPaymentTermsArabic),
+        _buildBilingualCard(
+          'Payment Terms',
+          _quotation.customPaymentTermsEng,
+          _quotation.customPaymentTermsArabic,
+        ),
         if (_quotation.paymentSchedule.isNotEmpty) ...[
           const SizedBox(height: 24),
           _buildPaymentScheduleSection(),
         ],
         const SizedBox(height: 24),
-        _buildBilingualCard('Warranty', _quotation.customWarrantyEng, _quotation.customWarrantyArabic),
+        _buildBilingualCard(
+          'Warranty',
+          _quotation.customWarrantyEng,
+          _quotation.customWarrantyArabic,
+        ),
         const SizedBox(height: 24),
-        _buildBilingualCard('Completion Period', _quotation.customCompletionPeriodEng, _quotation.customCompletionPeriodArabic),
+        _buildBilingualCard(
+          'Completion Period',
+          _quotation.customCompletionPeriodEng,
+          _quotation.customCompletionPeriodArabic,
+        ),
         const SizedBox(height: 24),
-        _buildBilingualCard('Contract Period', _quotation.customContractPeriod, _quotation.customContractPeriodInArabic),
+        _buildBilingualCard(
+          'Contract Period',
+          _quotation.customContractPeriod,
+          _quotation.customContractPeriodInArabic,
+        ),
       ],
     );
   }
@@ -453,13 +531,18 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
             title = 'Field Updated';
             final user = item['user'] ?? item['modified_by'] ?? 'System';
             subtitle = '$user updated ${item['field_name']}';
-            content = 'Changed from "${item['old_value']}" to "${item['new_value']}"';
+            content =
+                'Changed from "${item['old_value']}" to "${item['new_value']}"';
             break;
           case 'workflow':
             icon = Icons.alt_route_rounded;
             iconColor = AppColors.primary;
             title = item['workflow_state'] ?? 'State Change';
-            final user = item['user'] ?? item['modified_by'] ?? item['owner'] ?? 'System';
+            final user =
+                item['user'] ??
+                item['modified_by'] ??
+                item['owner'] ??
+                'System';
             subtitle = 'by $user';
             content = item['comment'];
             break;
@@ -467,7 +550,8 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
             icon = Icons.comment_outlined;
             iconColor = Colors.orange;
             title = 'Comment';
-            final commenter = item['user'] ?? item['comment_by'] ?? item['owner'] ?? 'System';
+            final commenter =
+                item['user'] ?? item['comment_by'] ?? item['owner'] ?? 'System';
             subtitle = 'from $commenter';
             content = item['content'];
             break;
@@ -493,11 +577,19 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: iconColor.withOpacity(0.1), shape: BoxShape.circle),
+                    decoration: BoxDecoration(
+                      color: iconColor.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
                     child: Icon(icon, size: 16, color: iconColor),
                   ),
                   if (!isLast)
-                    Expanded(child: Container(width: 1, color: AppColors.border.withOpacity(0.5))),
+                    Expanded(
+                      child: Container(
+                        width: 1,
+                        color: AppColors.border.withOpacity(0.5),
+                      ),
+                    ),
                 ],
               ),
               const SizedBox(width: 16),
@@ -511,24 +603,47 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Expanded(
-                            child: Text(title, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                            child: Text(
+                              title,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
                           ),
                           Text(
                             _formatDate(item['creation']),
-                            style: GoogleFonts.plusJakartaSans(fontSize: 11, color: AppColors.textLight),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11,
+                              color: AppColors.textLight,
+                            ),
                           ),
                         ],
                       ),
                       if (subtitle != null)
-                        Text(subtitle, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AppColors.textSecondary)),
+                        Text(
+                          subtitle,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                       if (content != null && content.isNotEmpty)
                         Container(
                           margin: const EdgeInsets.only(top: 8),
                           padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(10)),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                           child: Text(
                             _stripHtml(content),
-                            style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AppColors.textPrimary, height: 1.5),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13,
+                              color: AppColors.textPrimary,
+                              height: 1.5,
+                            ),
                           ),
                         ),
                     ],
@@ -546,7 +661,8 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border.withOpacity(0.5)),
       ),
       child: Column(
@@ -558,9 +674,22 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(_quotation.customerName, style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                    Text(
+                      _quotation.customerName,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
                     if (_quotation.customCustomerNameInArabic.isNotEmpty)
-                      Text(_quotation.customCustomerNameInArabic, style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AppColors.textSecondary)),
+                      Text(
+                        _quotation.customCustomerNameInArabic,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -579,7 +708,8 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border.withOpacity(0.5)),
       ),
       child: Column(
@@ -598,26 +728,46 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border.withOpacity(0.5)),
       ),
       child: ExpansionTile(
         shape: const RoundedRectangleBorder(side: BorderSide.none),
-        title: Text(item.itemCode, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold)),
+        title: Text(
+          item.itemCode,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(item.itemName, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AppColors.textSecondary)),
+            Text(
+              item.itemName,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
             const SizedBox(height: 4),
             Text(
               '${item.qty.toInt()} ${item.uom} x ${_quotation.currency} ${intl.NumberFormat("#,##0.00").format(item.rate)}',
-              style: GoogleFonts.plusJakartaSans(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
         trailing: Text(
           '${_quotation.currency} ${intl.NumberFormat("#,##0.00").format(item.amount)}',
-          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: AppColors.primary),
+          style: GoogleFonts.plusJakartaSans(
+            fontWeight: FontWeight.bold,
+            color: AppColors.primary,
+          ),
         ),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         children: [
@@ -636,7 +786,8 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border.withOpacity(0.5)),
       ),
       child: Column(
@@ -655,23 +806,42 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border.withOpacity(0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary)),
+          Text(
+            title,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
+          ),
           const SizedBox(height: 12),
           if (eng.isNotEmpty)
-            Text(_stripHtml(eng), style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AppColors.textPrimary, height: 1.5)),
+            Text(
+              _stripHtml(eng),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                color: AppColors.textPrimary,
+                height: 1.5,
+              ),
+            ),
           if (eng.isNotEmpty && arb.isNotEmpty) const Divider(height: 24),
           if (arb.isNotEmpty)
             Directionality(
               textDirection: TextDirection.rtl,
               child: Text(
                 _stripHtml(arb),
-                style: GoogleFonts.amiri(fontSize: 16, color: AppColors.textSecondary, height: 1.5),
+                style: GoogleFonts.amiri(
+                  fontSize: 16,
+                  color: AppColors.textSecondary,
+                  height: 1.5,
+                ),
               ),
             ),
         ],
@@ -697,12 +867,20 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
               Expanded(
                 child: Text(
                   item.item,
-                  style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
               Text(
                 '${item.qty.toStringAsFixed(0)} ${item.uom}',
-                style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
               ),
             ],
           ),
@@ -710,14 +888,21 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
             const SizedBox(height: 4),
             Text(
               item.itemName,
-              style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AppColors.textSecondary),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
             ),
           ],
           if (item.description.isNotEmpty) ...[
             const Divider(height: 20),
             Text(
               _stripHtml(item.description),
-              style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
             ),
           ],
         ],
@@ -750,7 +935,10 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
               if (_quotation.paymentTermsTemplate.isNotEmpty) ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
@@ -855,7 +1043,8 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border.withOpacity(0.5)),
       ),
       child: Column(
@@ -863,7 +1052,10 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
           _buildInfoRow('Brand Name', _quotation.customBrandName),
           _buildInfoRow('Brand (Arabic)', _quotation.customBrandNameInArabic),
           _buildInfoRow('Country of Origin', _quotation.customCountryOfOrigin),
-          _buildInfoRow('Origin (Arabic)', _quotation.customCountryOfOriginInArabic),
+          _buildInfoRow(
+            'Origin (Arabic)',
+            _quotation.customCountryOfOriginInArabic,
+          ),
           _buildInfoRow(
             'Material Brand',
             _quotation.customMaterialBrand
@@ -886,7 +1078,14 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
   Widget _buildSectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.only(left: 4),
-      child: Text(title, style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+      child: Text(
+        title,
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: AppColors.textPrimary,
+        ),
+      ),
     );
   }
 
@@ -897,10 +1096,28 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 130, child: Text(label, style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AppColors.textSecondary))),
+          SizedBox(
+            width: 130,
+            child: Text(
+              label,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
           const Text(':', style: TextStyle(color: AppColors.border)),
           const SizedBox(width: 16),
-          Expanded(child: Text(value, style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary))),
+          Expanded(
+            child: Text(
+              value,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -930,7 +1147,7 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
       setState(() => _isLoading = false);
       Map<String, dynamic>? mappedData;
       String? errorMessage;
-      
+
       if (response is Map) {
         final message = response['message'];
         if (message is Map) {
@@ -955,7 +1172,7 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
           mappedData = Map<String, dynamic>.from(response['data']);
         }
       }
-      
+
       if (errorMessage != null) {
         throw errorMessage;
       }
@@ -967,9 +1184,7 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
         final result = await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => SalesOrderFormScreen(
-              initialData: mappedData,
-            ),
+            builder: (context) => SalesOrderFormScreen(initialData: mappedData),
           ),
         );
         if (result == true) {
@@ -980,7 +1195,10 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error mapping document: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error mapping document: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -993,55 +1211,31 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
     List<Widget> buttons = [];
 
     if (isFullyApproved) {
-      final isMapped = _mappingStatus?['is_completed'] ?? false;
-      if (isMapped) {
-        buttons.add(
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Container(
-                height: 54,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: Center(
-                  child: Text(
-                    _mappingStatus?['message'] ?? 'Quotation Fully Processed',
-                    style: GoogleFonts.plusJakartaSans(
-                      color: Colors.grey.shade600,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
+      // Workflow complete — always show MAKE SALES ORDER
+      buttons.add(
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: _buildActionButton(
+              'MAKE SALES ORDER',
+              AppColors.primary,
+              Colors.white,
+              onTap: _makeSalesOrder,
             ),
           ),
-        );
-      } else {
-        // Workflow complete — always show MAKE SALES ORDER
-        buttons.add(
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: _buildActionButton(
-                'MAKE SALES ORDER',
-                AppColors.primary,
-                Colors.white,
-                onTap: _makeSalesOrder,
-              ),
-            ),
-          ),
-        );
-      }
+        ),
+      );
     } else {
       // Document still in workflow — show workflow action buttons only
       for (var action in _quotation.workflowActions) {
         final actLower = action.toLowerCase();
-        bool isSuccess = actLower.contains('approve') || actLower.contains('verify') || actLower.contains('review') || actLower.contains('submit');
-        bool isReject = actLower.contains('reject') || actLower.contains('cancel');
+        bool isSuccess =
+            actLower.contains('approve') ||
+            actLower.contains('verify') ||
+            actLower.contains('review') ||
+            actLower.contains('submit');
+        bool isReject =
+            actLower.contains('reject') || actLower.contains('cancel');
         Color bgColor = AppColors.primary;
         if (isSuccess) bgColor = const Color(0xFF10B981);
         if (isReject) bgColor = const Color(0xFFEF4444);
@@ -1065,22 +1259,34 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
     if (buttons.isEmpty) return const SizedBox.shrink();
 
     return Positioned(
-      bottom: 0, left: 0, right: 0,
+      bottom: 0,
+      left: 0,
+      right: 0,
       child: Container(
         padding: const EdgeInsets.fromLTRB(24, 20, 24, 34),
         decoration: BoxDecoration(
           color: Colors.white,
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, -5))],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            ),
+          ],
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        child: Row(
-          children: buttons,
-        ),
+        child: Row(children: buttons),
       ),
     );
   }
 
-  Widget _buildActionButton(String title, Color bgColor, Color textColor, {Color? borderColor, VoidCallback? onTap}) {
+  Widget _buildActionButton(
+    String title,
+    Color bgColor,
+    Color textColor, {
+    Color? borderColor,
+    VoidCallback? onTap,
+  }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1089,13 +1295,28 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
         child: Container(
           height: 54,
           decoration: BoxDecoration(
-            color: bgColor, borderRadius: BorderRadius.circular(12),
+            color: bgColor,
+            borderRadius: BorderRadius.circular(12),
             border: borderColor != null ? Border.all(color: borderColor) : null,
             boxShadow: bgColor != Colors.transparent && bgColor != Colors.white
-                ? [BoxShadow(color: bgColor.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))] : [],
+                ? [
+                    BoxShadow(
+                      color: bgColor.withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : [],
           ),
           child: Center(
-            child: Text(title, style: GoogleFonts.plusJakartaSans(color: textColor, fontWeight: FontWeight.bold, fontSize: 14)),
+            child: Text(
+              title,
+              style: GoogleFonts.plusJakartaSans(
+                color: textColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
           ),
         ),
       ),
@@ -1107,8 +1328,16 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   final Widget child;
   final double height;
   _SliverAppBarDelegate({required this.child, required this.height});
-  @override double get minExtent => height;
-  @override double get maxExtent => height;
-  @override Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => child;
-  @override bool shouldRebuild(_SliverAppBarDelegate oldDelegate) => false;
+  @override
+  double get minExtent => height;
+  @override
+  double get maxExtent => height;
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) => child;
+  @override
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) => false;
 }
