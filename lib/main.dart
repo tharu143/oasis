@@ -59,6 +59,13 @@ import 'package:oasis/features/sales_invoice/presentation/screens/sales_invoice_
 import 'package:oasis/features/sales_invoice/presentation/screens/sales_invoice_form_screen.dart';
 import 'package:oasis/features/sales_invoice/presentation/screens/sales_invoice_list_screen.dart';
 
+// Timesheet Screen Imports
+import 'package:oasis/features/timesheet/models/timesheet_model.dart';
+import 'package:oasis/features/timesheet/presentation/screens/timesheet_dashboard_screen.dart';
+import 'package:oasis/features/timesheet/presentation/screens/timesheet_detail_screen.dart';
+import 'package:oasis/features/timesheet/presentation/screens/timesheet_form_screen.dart';
+import 'package:oasis/features/timesheet/presentation/screens/timesheet_list_screen.dart';
+
 
 /// Global navigator key — used by FcmService for deep-link routing on notification tap.
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -129,6 +136,11 @@ class OasisApp extends StatelessWidget {
         '/sales-invoice-dashboard': (context) => const SalesInvoiceDashboardScreen(),
         '/sales-invoice-list': (context) => const SalesInvoiceListScreen(),
         '/sales-invoice-form': (context) => const SalesInvoiceFormScreen(),
+
+        // Timesheet Routes
+        '/timesheet-dashboard': (context) => const TimesheetDashboardScreen(),
+        '/timesheet-list': (context) => const TimesheetListScreen(),
+        '/timesheet-form': (context) => const TimesheetFormScreen(),
       },
       // onGenerateRoute handles dynamic routes — e.g. deep-linking with a docname
       onGenerateRoute: (settings) {
@@ -270,6 +282,18 @@ class OasisApp extends StatelessWidget {
           );
           return MaterialPageRoute(
             builder: (_) => SalesInvoiceDetailScreen(salesInvoice: stub),
+            settings: settings,
+          );
+        }
+
+        if (settings.name == '/timesheet-detail') {
+          final docname = settings.arguments as String? ?? '';
+          final stub = TimesheetModel(
+            name: docname,
+            employee: '',
+          );
+          return MaterialPageRoute(
+            builder: (_) => TimesheetDetailScreen(timesheet: stub),
             settings: settings,
           );
         }

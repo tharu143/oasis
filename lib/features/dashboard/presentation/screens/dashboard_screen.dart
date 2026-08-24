@@ -14,6 +14,7 @@ import 'package:oasis/features/purchase_order/presentation/screens/purchase_orde
 import 'package:oasis/features/material_request/presentation/screens/material_request_list_screen.dart';
 import 'package:oasis/features/journal_entry/presentation/screens/journal_entry_list_screen.dart';
 import 'package:oasis/features/payment_entry/presentation/screens/payment_entry_list_screen.dart';
+import 'package:oasis/features/timesheet/presentation/screens/timesheet_list_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -663,6 +664,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       case 'payment_entry':
         screen = PaymentEntryListScreen(initialState: state);
         break;
+      case 'timesheet':
+        screen = TimesheetListScreen(filterStatus: state);
+        break;
       default:
         return;
     }
@@ -723,6 +727,12 @@ class _DashboardScreenState extends State<DashboardScreen>
           'title': 'Payment Entry',
           'icon': Icons.payments_rounded,
           'color': const Color(0xFFF43F5E),
+        },
+        {
+          'key': 'timesheet',
+          'title': 'Timesheet',
+          'icon': Icons.timer_rounded,
+          'color': const Color(0xFF0284C7),
         },
       ];
 
@@ -813,6 +823,9 @@ class _DashboardScreenState extends State<DashboardScreen>
         break;
       case 'payment_entry':
         Navigator.pushNamed(context, '/payment-entry-dashboard');
+        break;
+      case 'timesheet':
+        Navigator.pushNamed(context, '/timesheet-dashboard');
         break;
     }
   }
