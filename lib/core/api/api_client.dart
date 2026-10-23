@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiClient {
-  static const String defaultServerUrl = "https://oasis.vpsbusinesssolution.com";
+  static const String defaultServerUrl = "https://erp.oasisqatar.com";
   
   Future<Map<String, dynamic>> post(String method, Map<String, dynamic> body) async {
     final prefs = await SharedPreferences.getInstance();

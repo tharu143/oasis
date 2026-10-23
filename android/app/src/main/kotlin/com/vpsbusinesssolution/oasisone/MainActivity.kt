@@ -1,4 +1,4 @@
-package com.example.oasis_erp
+package com.vpsbusinesssolution.oasisone
 
 import io.flutter.embedding.android.FlutterActivity
 

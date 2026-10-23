@@ -38,7 +38,7 @@ const AndroidNotificationChannel _androidChannel = AndroidNotificationChannel(
   importance: Importance.max,
 );
 
-/// Singleton FCM service for oasis-erp.
+/// Singleton FCM service for Oasis.
 ///
 /// Usage:
 ///   1. Call [initialize(navigatorKey)] once in main() after Firebase.initializeApp()

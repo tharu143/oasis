@@ -63,6 +63,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '953491003461',
     projectId: 'oasis-mobile-erp',
     storageBucket: 'oasis-mobile-erp.firebasestorage.app',
-    iosBundleId: 'com.example.oasis-erp',
+    iosBundleId: 'com.vpsbusinesssolution.oasisone',
   );
 }

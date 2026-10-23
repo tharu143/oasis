@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:oasis/core/api/api_client.dart';
 import 'package:oasis/core/constants/app_colors.dart';
 import 'package:oasis/core/widgets/workflow_action_bar.dart';
+import 'package:oasis/core/widgets/doc_link_text.dart';
 import 'package:oasis/core/services/role_helper.dart';
 import '../../models/payment_entry_model.dart';
 import 'payment_entry_form_screen.dart';
@@ -465,9 +466,15 @@ class _PaymentEntryDetailScreenState extends State<PaymentEntryDetailScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          ref.referenceName,
-                          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary),
+                        DocLinkText(
+                          doctype: ref.referenceDoctype,
+                          docname: ref.referenceName,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: AppColors.primary,
+                            decoration: TextDecoration.underline,
+                          ),
                         ),
                         Text(
                           'QAR ${ref.allocatedAmount.toStringAsFixed(2)}',

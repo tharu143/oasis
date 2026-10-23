@@ -20,7 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _serverController = TextEditingController(text: 'oasis.vpsbusinesssolution.com');
+  final _serverController = TextEditingController(text: 'erp.oasisqatar.com');
   
   bool _isLoading = false;
   bool _obscurePassword = true;
